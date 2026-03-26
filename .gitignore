@@ -1,0 +1,13 @@
+.env
+data/
+outputs/
+__pycache__/
+*.pyc
+*.pyc
+attachments/
+*.h5
+*.json
+!data/.gitkeep
+!outputs/.gitkeep
+.DS_Store
+files.zip

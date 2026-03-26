@@ -1,0 +1,634 @@
+"""
+Job Scraper Dashboard — Flask Backend
+Run: python app.py
+Open: http://localhost:5000
+"""
+
+from flask import Flask, request, jsonify, send_file
+import os, json, csv, re, time, threading
+from pathlib import Path
+from collections import Counter
+import tempfile
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+BASE_DIR = Path(__file__).parent
+DATA_DIR = BASE_DIR / "data"
+OUTPUTS_DIR = BASE_DIR / "outputs"
+DATA_DIR.mkdir(exist_ok=True)
+OUTPUTS_DIR.mkdir(exist_ok=True)
+
+JOBS_FILE = DATA_DIR / "linkedin_jobs.json"
+SCORED_FILE = DATA_DIR / "linkedin_jobs_scored.json"
+
+# ─── State ────────────────────────────────────────────────────────────────────
+state = {
+    "running": False,
+    "stop_requested": False,
+    "stage": "",
+    "log": [],
+    "jobs": [],
+    "scored_jobs": [],
+    "clusters": [],
+    "study_plan": [],
+    "error": None
+}
+
+def log(msg):
+    print(msg)
+    state["log"].append(msg)
+
+# ─── Routes ───────────────────────────────────────────────────────────────────
+@app.route("/")
+def index():
+    with open(BASE_DIR / "dashboard.html") as f:
+        return f.read()
+
+@app.route("/status")
+def status():
+    return jsonify({
+        "running": state["running"],
+        "stop_requested": state["stop_requested"],
+        "stage": state["stage"],
+        "log": state["log"][-50:],
+        "job_count": len(state["jobs"]),
+        "scored_count": len(state["scored_jobs"]),
+        "error": state["error"]
+    })
+
+@app.route("/stop", methods=["POST"])
+def stop():
+    if state["running"]:
+        state["stop_requested"] = True
+        state["stage"] = "Stopping..."
+        log("⚠ Stop requested — finishing current task then stopping...")
+        return jsonify({"ok": True})
+    return jsonify({"error": "Not running"}), 400
+
+@app.route("/reset", methods=["POST"])
+def reset():
+    if state["running"]:
+        return jsonify({"error": "Still running, stop first"}), 400
+    state["stop_requested"] = False
+    state["stage"] = ""
+    state["log"] = []
+    state["jobs"] = []
+    state["scored_jobs"] = []
+    state["clusters"] = []
+    state["study_plan"] = []
+    state["error"] = None
+    log("Pipeline reset. Ready to run.")
+    return jsonify({"ok": True})
+
+@app.route("/run", methods=["POST"])
+def run():
+    if state["running"]:
+        return jsonify({"error": "Already running"}), 400
+
+    data = request.form
+    files = request.files
+    mode = data.get("mode")
+
+    config = {
+        "mode": mode,
+        "email": data.get("email", ""),
+        "password": data.get("password", ""),
+        "keywords": [k.strip() for k in data.get("keywords", "").split(",") if k.strip()],
+        "location": data.get("location", "Vienna"),
+        "anthropic_key": data.get("anthropic_key", ""),
+        "time_filter": data.get("time_filter", "r604800"),
+        "pages": int(data.get("pages", 5)),
+        "profession": data.get("profession", "").strip(),
+        "resume_text": ""
+    }
+
+    if "resume" in files:
+        resume_file = files["resume"]
+        suffix = Path(resume_file.filename).suffix.lower()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            resume_file.save(tmp.name)
+            try:
+                if suffix == ".pdf":
+                    import pdfplumber
+                    with pdfplumber.open(tmp.name) as pdf:
+                        config["resume_text"] = "\n".join(p.extract_text() or "" for p in pdf.pages)
+                elif suffix in [".docx", ".doc"]:
+                    import docx
+                    doc = docx.Document(tmp.name)
+                    config["resume_text"] = "\n".join(p.text for p in doc.paragraphs)
+            except Exception as e:
+                log(f"Warning: could not extract resume text: {e}")
+
+    state["running"] = True
+    state["stop_requested"] = False
+    state["log"] = []
+    state["jobs"] = []
+    state["scored_jobs"] = []
+    state["clusters"] = []
+    state["study_plan"] = []
+    state["error"] = None
+    state["stage"] = "Starting..."
+
+    thread = threading.Thread(target=run_pipeline, args=(config,))
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({"ok": True})
+
+@app.route("/salary_stats")
+def salary_stats():
+    jobs = state["scored_jobs"] or state["jobs"]
+    annual = [j for j in jobs if classify_salary(j.get("salary","")) == "annual"]
+    hourly = [j for j in jobs if classify_salary(j.get("salary","")) == "hourly"]
+    missing = [j for j in jobs if classify_salary(j.get("salary","")) == "missing"]
+
+    def summarize(group):
+        return [{
+            "title": j.get("title",""),
+            "company": j.get("company",""),
+            "location": j.get("location",""),
+            "salary": j.get("salary",""),
+            "fit_score": j.get("fit_score",""),
+            "response_probability": j.get("response_probability",""),
+            "matched_skills": j.get("matched_skills", []),
+            "missing_skills": j.get("missing_skills", []),
+            "verdict": j.get("verdict",""),
+            "url": j.get("url","")
+        } for j in sorted(group, key=lambda x: x.get("fit_score",0) if x.get("fit_score","") != "" else 0, reverse=True)]
+
+    return jsonify({
+        "annual": summarize(annual),
+        "hourly": summarize(hourly),
+        "missing": summarize(missing)
+    })
+
+@app.route("/download/<filetype>")
+def download(filetype):
+    if filetype == "csv":
+        return send_file(generate_csv(), as_attachment=True, download_name="job_results.csv")
+    elif filetype == "skills":
+        return send_file(generate_skills_txt(), as_attachment=True, download_name="skill_clusters.txt")
+    elif filetype == "plan":
+        return send_file(generate_plan_txt(), as_attachment=True, download_name="study_plan.txt")
+    return "Not found", 404
+
+# ─── Pipeline ─────────────────────────────────────────────────────────────────
+def run_pipeline(config):
+    try:
+        mode = config["mode"]
+
+        state["stage"] = "Scraping LinkedIn..."
+        scrape_jobs(config)
+
+        if state["stop_requested"]:
+            raise StopIteration("Stopped by user after scraping")
+
+        if mode in ["with_scoring", "full"]:
+            state["stage"] = "Fetching job descriptions..."
+            fetch_descriptions(config)
+
+            if state["stop_requested"]:
+                raise StopIteration("Stopped by user after fetching descriptions")
+
+            state["stage"] = "Scoring jobs with AI..."
+            score_jobs(config)
+
+        if mode == "full" and not state["stop_requested"]:
+            state["stage"] = "Generating skill clusters and study plan..."
+            generate_clusters_and_plan(config)
+
+        save_jobs()
+        state["stage"] = "Done ✓"
+        state["running"] = False
+        log("✓ Pipeline complete. Download your files below.")
+
+    except StopIteration as e:
+        save_jobs()
+        state["stage"] = "Stopped ⚠"
+        state["running"] = False
+        state["stop_requested"] = False
+        log(f"⚠ Pipeline stopped: {e}")
+        log("Partial results saved. Download CSV or reset to start fresh.")
+    except Exception as e:
+        import traceback
+        state["error"] = str(e)
+        state["stage"] = "Error"
+        state["running"] = False
+        log(f"✗ Error: {e}")
+        log(traceback.format_exc())
+
+def save_jobs():
+    existing = {}
+    if JOBS_FILE.exists():
+        with open(JOBS_FILE) as f:
+            for j in json.load(f):
+                existing[j["id"]] = j
+    for job in state["jobs"]:
+        existing[job["id"]] = job
+    with open(JOBS_FILE, "w") as f:
+        json.dump(list(existing.values()), f, indent=2)
+
+    if state["scored_jobs"]:
+        scored_existing = {}
+        if SCORED_FILE.exists():
+            with open(SCORED_FILE) as f:
+                for j in json.load(f):
+                    scored_existing[j["id"]] = j
+        for job in state["scored_jobs"]:
+            scored_existing[job["id"]] = job
+        with open(SCORED_FILE, "w") as f:
+            json.dump(list(scored_existing.values()), f, indent=2)
+
+    log(f"Saved {len(existing)} jobs to data/")
+
+# ─── Step 1: Scrape ───────────────────────────────────────────────────────────
+def scrape_jobs(config):
+    from playwright.sync_api import sync_playwright
+
+    all_jobs = []
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
+
+        log("Logging into LinkedIn...")
+        page.goto("https://www.linkedin.com/feed")
+        page.wait_for_timeout(3000)
+        if "login" in page.url or "authwall" in page.url:
+            page.goto("https://www.linkedin.com/login")
+            page.wait_for_selector("#username", timeout=15000)
+            page.fill("#username", config["email"])
+            page.fill("#password", config["password"])
+            page.click("button[type=submit]")
+            page.wait_for_timeout(6000)
+            log("Logged in successfully")
+        else:
+            log("Already logged in")
+
+        for keyword in config["keywords"]:
+            log(f"Scraping: {keyword}")
+            for page_num in range(0, config["pages"]):
+                url = f"https://www.linkedin.com/jobs/search/?keywords={keyword.replace(' ', '+')}&location={config['location']}&f_TPR={config['time_filter']}&sortBy=R&start={page_num * 25}"
+                page.goto(url)
+                page.wait_for_timeout(5000)
+                for _ in range(3):
+                    page.keyboard.press("End")
+                    page.wait_for_timeout(1500)
+
+                jobs = page.query_selector_all(".scaffold-layout__list-item")
+                log(f"  Page {page_num+1}: {len(jobs)} jobs")
+                if len(jobs) == 0:
+                    break
+
+                for job in jobs:
+                    title = job.query_selector(".job-card-list__title--link span[aria-hidden='true']")
+                    company = job.query_selector(".artdeco-entity-lockup__subtitle span")
+                    location_el = job.query_selector(".artdeco-entity-lockup__caption li span")
+                    link = job.query_selector("a.job-card-list__title--link")
+                    job_id_el = job.query_selector("[data-job-id]")
+
+                    if title and link:
+                        all_jobs.append({
+                            "id": job_id_el.get_attribute("data-job-id") if job_id_el else "",
+                            "title": title.inner_text().strip(),
+                            "company": company.inner_text().strip() if company else "",
+                            "location": location_el.inner_text().strip() if location_el else "",
+                            "url": "https://www.linkedin.com" + link.get_attribute("href"),
+                            "keyword": keyword,
+                            "description": "",
+                            "salary": "",
+                            "scored": False
+                        })
+
+        browser.close()
+
+    seen = set()
+    unique = []
+    for job in all_jobs:
+        if job["id"] and job["id"] not in seen:
+            seen.add(job["id"])
+            unique.append(job)
+
+    state["jobs"] = unique
+    log(f"Total unique jobs scraped: {len(unique)}")
+
+# ─── Step 2: Fetch Descriptions ───────────────────────────────────────────────
+def fetch_descriptions(config):
+    from playwright.sync_api import sync_playwright
+
+    jobs = state["jobs"]
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
+
+        page.goto("https://www.linkedin.com/feed")
+        page.wait_for_timeout(3000)
+        if "login" in page.url or "authwall" in page.url:
+            page.goto("https://www.linkedin.com/login")
+            page.wait_for_selector("#username", timeout=15000)
+            page.fill("#username", config["email"])
+            page.fill("#password", config["password"])
+            page.click("button[type=submit]")
+            page.wait_for_timeout(6000)
+
+        for i, job in enumerate(jobs):
+            try:
+                page.goto(job["url"])
+                page.wait_for_timeout(5000)
+
+                for btn_text in ["Show more", "See more"]:
+                    btn = page.query_selector(f"button:has-text('{btn_text}')")
+                    if btn:
+                        btn.click()
+                        page.wait_for_timeout(1000)
+                        break
+
+                body_text = page.inner_text("body")
+
+                if "About the job" in body_text:
+                    job["description"] = body_text.split("About the job")[-1].strip()[:12000]
+
+                salary_patterns = [
+                    r'[\$€£]\s*[\d,\.]+\s*[kK]?\s*[-–]\s*[\$€£]?\s*[\d,\.]+\s*[kK]?',
+                    r'[\d,\.]+\s*[kK]?\s*[-–]\s*[\d,\.]+\s*[kK]?\s*(EUR|USD|GBP|€|\$)',
+                    r'[\$€£]\s*[\d,\.]+\s*(per hour|per year|\/hr|\/yr|annually)',
+                ]
+                for line in body_text.split("\n"):
+                    line = line.strip()
+                    for pattern in salary_patterns:
+                        if re.search(pattern, line, re.IGNORECASE):
+                            job["salary"] = re.sub(r'\s*·.*$', '', line).strip()
+                            break
+                    if job.get("salary"):
+                        break
+
+                if i % 10 == 0:
+                    log(f"  Fetched descriptions: {i+1}/{len(jobs)}")
+
+            except Exception as e:
+                log(f"  Error fetching {job['title']}: {e}")
+
+            if state["stop_requested"]:
+                log(f"  Stopping description fetch at job {i+1}/{len(jobs)}")
+                break
+
+            time.sleep(1.5)
+
+        browser.close()
+
+    log(f"Descriptions fetched for {len([j for j in jobs if j.get('description')])} jobs")
+
+# ─── Step 3: Score Jobs ───────────────────────────────────────────────────────
+def score_jobs(config):
+    import anthropic
+
+    resume = config.get("resume_text", "No resume provided")
+    profession = config.get("profession", "the relevant field")
+    client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
+    jobs = state["jobs"]
+    scored = []
+
+    for i, job in enumerate(jobs):
+        if not job.get("description"):
+            continue
+
+        prompt = f"""You are a senior recruiter and career coach specialising in {profession or "the relevant field"} roles.
+
+Evaluate this candidate for the specific job below. Be precise and honest, not generic.
+Base your evaluation strictly on what is in the resume vs what the job actually requires.
+Consider: location match, visa/work authorization if mentioned, seniority level, competition.
+
+CANDIDATE RESUME:
+{resume}
+
+JOB TITLE: {job['title']}
+COMPANY: {job['company']}
+LOCATION: {job['location']}
+JOB DESCRIPTION:
+{job.get('description', '')[:6000]}
+
+Respond ONLY in this exact JSON format, no other text:
+{{
+  "fit_score": <0-100, how well candidate matches this specific job>,
+  "matched_skills": ["specific skill or experience from resume that matches job requirement"],
+  "missing_skills": ["specific requirement in JD that candidate lacks or has not demonstrated"],
+  "response_probability": <0-100, realistic chance of getting a callback given competition and fit>,
+  "general_gaps": "2 honest sentences on the biggest gaps between candidate and this role",
+  "resume_suggestions": [
+    "Concrete suggestion 1 referencing actual job requirement",
+    "Concrete suggestion 2 referencing actual job requirement",
+    "Concrete suggestion 3 referencing actual job requirement"
+  ],
+  "verdict": "One direct sentence: should they apply and why"
+}}"""
+
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = response.content[0].text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            result = json.loads(text.strip())
+            job.update(result)
+            job["scored"] = True
+            if i % 5 == 0:
+                log(f"  Scored {i+1}/{len(jobs)} — {job['title']} | fit: {result.get('fit_score')}")
+        except Exception as e:
+            log(f"  Error scoring {job['title']}: {e}")
+
+        scored.append(job)
+
+        if state["stop_requested"]:
+            log(f"  Stopping scoring at job {i+1}/{len(jobs)}")
+            break
+
+        time.sleep(0.5)
+
+    state["scored_jobs"] = scored
+    log(f"Scoring complete: {len([j for j in scored if j.get('scored')])} jobs scored")
+
+# ─── Step 4: Clusters + Plan ──────────────────────────────────────────────────
+def generate_clusters_and_plan(config):
+    import anthropic
+
+    profession = config.get("profession", "the relevant field")
+    client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
+    jobs = state["scored_jobs"] or state["jobs"]
+    resume = config.get("resume_text", "")
+
+    all_missing = []
+    for job in jobs:
+        all_missing.extend(job.get("missing_skills", []))
+    freq = Counter(all_missing).most_common(40)
+    skill_list = "\n".join([f"- {s} ({c}x)" for s, c in freq])
+
+    job_summaries = "\n".join([
+        f"- {j['title']} @ {j['company']} | fit: {j.get('fit_score', '?')} | missing: {', '.join(j.get('missing_skills', [])[:3])}"
+        for j in sorted(jobs, key=lambda x: x.get('fit_score', 0), reverse=True)[:30]
+    ])
+
+    prompt = f"""You are a senior career coach specialising in {profession or "this field"}.
+
+A candidate is applying to {len(jobs)} job listings. Based on their resume and skill gaps, do two things:
+
+1. SKILL CLUSTERS: Group the missing skills into 6-8 meaningful clusters relevant to {profession or "their target roles"}.
+   For each cluster:
+   - name: clear cluster name
+   - skills: list of skills included
+   - score_boost: realistic fit score increase if learned (0-15)
+   - jobs_impacted: how many of the {len(jobs)} jobs would benefit
+   - days: days of focused study to reach interview-ready level
+   - resource: one specific named learning resource with URL
+   - priority: high / medium / low based on ROI
+
+2. STUDY PLAN: 4-week day-by-day plan. Highest ROI first. Week 4 = apply + polish.
+   Each day:
+   - focus, tasks (3 specific actions), deliverable (portfolio/CV output), hours (2-4)
+
+RESUME: {resume[:2000]}
+
+TOP JOBS: {job_summaries}
+
+MISSING SKILLS: {skill_list}
+
+Respond ONLY in JSON:
+{{
+  "clusters": [{{"name":"","skills":[],"score_boost":0,"jobs_impacted":0,"days":0,"resource":"","priority":"high"}}],
+  "study_plan": [{{"week":1,"theme":"","days":[{{"day":1,"focus":"","tasks":["","",""],"deliverable":"","hours":3}}]}}]
+}}"""
+
+    try:
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=6000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        result = json.loads(text.strip())
+        state["clusters"] = result.get("clusters", [])
+        state["study_plan"] = result.get("study_plan", [])
+        log("Skill clusters and study plan generated")
+    except Exception as e:
+        log(f"Error generating clusters/plan: {e}")
+        state["clusters"] = []
+        state["study_plan"] = []
+
+# ─── File Generators ──────────────────────────────────────────────────────────
+def classify_salary(salary_str):
+    """Returns annual, hourly, or missing"""
+    if not salary_str or not salary_str.strip():
+        return "missing"
+    s = salary_str.lower()
+    if any(x in s for x in ["/hr", "per hour", "hourly", "/h"]):
+        return "hourly"
+    if any(x in s for x in ["/yr", "per year", "annually", "year", "annual", "k/y"]):
+        return "annual"
+    numbers = re.findall(r"[\d]+", salary_str.replace(",", ""))
+    if numbers:
+        try:
+            val = int(numbers[0])
+            if val > 1000:
+                return "annual"
+            elif val < 500:
+                return "hourly"
+        except:
+            pass
+    return "annual"
+
+def generate_csv():
+    jobs = state["scored_jobs"] or state["jobs"]
+
+    for job in jobs:
+        job["salary_type"] = classify_salary(job.get("salary", ""))
+
+    annual = [j for j in jobs if j["salary_type"] == "annual"]
+    hourly = [j for j in jobs if j["salary_type"] == "hourly"]
+    missing = [j for j in jobs if j["salary_type"] == "missing"]
+
+    path = OUTPUTS_DIR / "job_results.csv"
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Title", "Company", "Location", "Salary", "Salary Type",
+                         "Fit Score", "Response Probability", "Missing Skills", "Verdict", "URL"])
+
+        def write_section(section_jobs, label):
+            if section_jobs:
+                writer.writerow([f"--- {label} ({len(section_jobs)} jobs) ---"])
+                for job in sorted(section_jobs, key=lambda x: x.get("fit_score", 0), reverse=True):
+                    writer.writerow([
+                        job.get("title", ""), job.get("company", ""), job.get("location", ""),
+                        job.get("salary", ""), job.get("salary_type", ""),
+                        job.get("fit_score", ""), job.get("response_probability", ""),
+                        " | ".join(job.get("missing_skills", [])), job.get("verdict", ""),
+                        job.get("url", "")
+                    ])
+                writer.writerow([])
+
+        write_section(annual, "ANNUAL SALARY")
+        write_section(hourly, "HOURLY RATE")
+        write_section(missing, "SALARY NOT LISTED")
+
+    return str(path)
+
+def generate_skills_txt():
+    clusters = state.get("clusters", [])
+    path = OUTPUTS_DIR / "skill_clusters.txt"
+    with open(path, "w") as f:
+        f.write("SKILL GAP ANALYSIS\n" + "=" * 60 + "\n\n")
+        if not clusters:
+            jobs = state["scored_jobs"] or state["jobs"]
+            all_missing = []
+            for job in jobs:
+                all_missing.extend(job.get("missing_skills", []))
+            for skill, count in Counter(all_missing).most_common():
+                f.write(f"  {count:3d}x  {skill}\n")
+        else:
+            for c in sorted(clusters, key=lambda x: x.get("score_boost", 0), reverse=True):
+                f.write(f"[{c.get('priority','').upper()}] {c['name']}\n")
+                f.write(f"  Score boost:   +{c.get('score_boost', 0)} pts\n")
+                f.write(f"  Jobs impacted: {c.get('jobs_impacted', '?')}\n")
+                f.write(f"  Days to learn: {c.get('days', '?')}\n")
+                f.write(f"  Resource:      {c.get('resource', '')}\n")
+                f.write(f"  Skills:        {', '.join(c.get('skills', []))}\n\n")
+    return str(path)
+
+def generate_plan_txt():
+    plan = state.get("study_plan", [])
+    path = OUTPUTS_DIR / "study_plan.txt"
+    with open(path, "w") as f:
+        f.write("4-WEEK STUDY PLAN\n" + "=" * 60 + "\n\n")
+        if not plan:
+            f.write("Run in 'Full Analysis' mode to generate a personalized study plan.\n")
+        else:
+            for week in plan:
+                f.write(f"WEEK {week['week']} — {week.get('theme', '')}\n" + "-" * 40 + "\n")
+                for day in week.get("days", []):
+                    f.write(f"\nDay {day['day']}: {day['focus']} ({day.get('hours', 3)} hrs)\n")
+                    for task in day.get("tasks", []):
+                        f.write(f"  □ {task}\n")
+                    f.write(f"  → Deliverable: {day.get('deliverable', '')}\n")
+                f.write("\n")
+    return str(path)
+
+if __name__ == "__main__":
+    print("Starting Job Scraper Dashboard...")
+    print("Open http://localhost:5000 in your browser")
+    app.run(debug=False, port=5000)
