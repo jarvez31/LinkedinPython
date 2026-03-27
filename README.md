@@ -25,9 +25,11 @@ cd KarrierPython
 ```
 
 ### 2. Run setup script
-```bash
-bash setup.sh
-```
+**macOS/Linux:**
+````bash setup.sh ```
+
+**Windows:**
+```bat setup.bat ```
 
 This does everything automatically:
 - Creates a Python virtual environment
