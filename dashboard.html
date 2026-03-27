@@ -641,6 +641,25 @@
     </a>
   </div>
 
+  <!-- Load Existing CSV -->
+  <div style="margin-top: 48px;">
+    <div class="section-label">Load Existing Results</div>
+    <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px; background: var(--card); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 200px;">
+        <div style="font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 4px;">Open a previous CSV</div>
+        <div style="font-size: 11px; color: var(--muted);">Load a job_results CSV from a previous run to browse salary tabs without re-scraping.</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="upload-zone" style="padding: 10px 16px; display: inline-flex; align-items: center; gap: 8px; width: auto; text-align: left;">
+          <input type="file" id="csv-upload-input" accept=".csv" onchange="loadCsvFile(this)" style="position: absolute; inset: 0; opacity: 0; cursor: pointer;">
+          <span style="font-size: 16px;">📂</span>
+          <span class="upload-text" id="csv-upload-label">Choose CSV file</span>
+        </div>
+        <div id="csv-load-status" style="font-size: 11px; color: var(--muted);"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Salary Tabs -->
   <div id="salary-section" style="display:none; margin-top: 40px;">
     <div class="section-label">Jobs by Salary Type</div>
@@ -886,6 +905,55 @@
       document.getElementById('salary-section').style.display = 'block';
     } catch(e) {
       console.error('Could not load salary stats', e);
+    }
+  }
+
+  // Load existing CSV
+  async function loadCsvFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    document.getElementById('csv-upload-label').textContent = file.name;
+    document.getElementById('csv-load-status').textContent = 'Loading...';
+
+    const formData = new FormData();
+    formData.append('csv_file', file);
+
+    try {
+      const res = await fetch('/load_csv', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.error) {
+        document.getElementById('csv-load-status').textContent = '✗ ' + data.error;
+        return;
+      }
+
+      // Populate salary tabs with loaded data
+      document.getElementById('count-annual').textContent = data.annual.length;
+      document.getElementById('count-hourly').textContent = data.hourly.length;
+      document.getElementById('count-missing').textContent = data.missing.length;
+
+      document.getElementById('jobs-annual').innerHTML = data.annual.length
+        ? data.annual.map(renderJobCard).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No annual salary jobs found.</p>';
+
+      document.getElementById('jobs-hourly').innerHTML = data.hourly.length
+        ? data.hourly.map(renderJobCard).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No hourly rate jobs found.</p>';
+
+      document.getElementById('jobs-missing').innerHTML = data.missing.length
+        ? data.missing.map(renderJobCard).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No jobs with missing salary.</p>';
+
+      document.getElementById('salary-section').style.display = 'block';
+      document.getElementById('csv-load-status').textContent = `✓ ${data.total} jobs loaded`;
+      document.getElementById('csv-load-status').style.color = 'var(--accent3)';
+
+      // Scroll to tabs
+      document.getElementById('salary-section').scrollIntoView({ behavior: 'smooth' });
+
+    } catch(e) {
+      document.getElementById('csv-load-status').textContent = '✗ Failed to load file';
     }
   }
 

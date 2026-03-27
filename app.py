@@ -164,6 +164,100 @@ def salary_stats():
         "missing": summarize(missing)
     })
 
+@app.route("/load_csv", methods=["POST"])
+def load_csv():
+    """Load an existing job_results CSV and populate salary tabs."""
+    if "csv_file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["csv_file"]
+    if not file.filename.endswith(".csv"):
+        return jsonify({"error": "File must be a .csv"}), 400
+
+    try:
+        import io
+        content_str = file.read().decode("utf-8")
+        reader = csv.reader(io.StringIO(content_str))
+        headers = next(reader, None)
+
+        if not headers:
+            return jsonify({"error": "Empty CSV"}), 400
+
+        # Detect column indices
+        def col(name):
+            name = name.lower()
+            for i, h in enumerate(headers):
+                if h.lower().strip() == name:
+                    return i
+            return None
+
+        idx = {
+            "title": col("title"),
+            "company": col("company"),
+            "location": col("location"),
+            "salary": col("salary"),
+            "salary_type": col("salary type"),
+            "fit_score": col("fit score"),
+            "response_probability": col("response probability"),
+            "missing_skills": col("missing skills"),
+            "verdict": col("verdict"),
+            "url": col("url"),
+        }
+
+        annual, hourly, missing_salary = [], [], []
+
+        for row in reader:
+            if not row or not any(row):
+                continue
+            # Skip section header rows like "--- ANNUAL SALARY ---"
+            if row[0].startswith("---"):
+                continue
+
+            def get(key):
+                i = idx.get(key)
+                return row[i].strip() if i is not None and i < len(row) else ""
+
+            salary_type = get("salary_type") or classify_salary(get("salary"))
+            missing = [s.strip() for s in get("missing_skills").split("|") if s.strip()]
+
+            job = {
+                "title": get("title"),
+                "company": get("company"),
+                "location": get("location"),
+                "salary": get("salary"),
+                "fit_score": get("fit_score"),
+                "response_probability": get("response_probability"),
+                "missing_skills": missing,
+                "matched_skills": [],
+                "verdict": get("verdict"),
+                "url": get("url"),
+            }
+
+            if salary_type == "annual":
+                annual.append(job)
+            elif salary_type == "hourly":
+                hourly.append(job)
+            else:
+                missing_salary.append(job)
+
+        def sort_by_fit(group):
+            def fit_key(j):
+                try:
+                    return int(j.get("fit_score", 0))
+                except:
+                    return 0
+            return sorted(group, key=fit_key, reverse=True)
+
+        return jsonify({
+            "annual": sort_by_fit(annual),
+            "hourly": sort_by_fit(hourly),
+            "missing": sort_by_fit(missing_salary),
+            "total": len(annual) + len(hourly) + len(missing_salary)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/download/<filetype>")
 def download(filetype):
     if filetype == "csv":
