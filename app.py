@@ -20,8 +20,11 @@ OUTPUTS_DIR = BASE_DIR / "outputs"
 DATA_DIR.mkdir(exist_ok=True)
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
-JOBS_FILE = DATA_DIR / "linkedin_jobs.json"
-SCORED_FILE = DATA_DIR / "linkedin_jobs_scored.json"
+JOBS_FILE           = DATA_DIR / "linkedin_jobs.json"
+SCORED_FILE         = DATA_DIR / "linkedin_jobs_scored.json"
+APPLIED_FILE        = DATA_DIR / "applied.json"
+NOT_INTERESTED_FILE = DATA_DIR / "not_interested.json"
+REJECTED_FILE       = DATA_DIR / "rejected.json"
 
 # ─── State ────────────────────────────────────────────────────────────────────
 state = {
@@ -39,6 +42,28 @@ state = {
 def log(msg):
     print(msg)
     state["log"].append(msg)
+
+# ─── Status File Helpers ──────────────────────────────────────────────────────
+def load_file(path):
+    if path.exists():
+        with open(path) as f:
+            return json.load(f)
+    return {}
+
+def save_file(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+def get_timestamp():
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M")
+
+def remove_from_all(job_id):
+    for path in [APPLIED_FILE, NOT_INTERESTED_FILE, REJECTED_FILE]:
+        data = load_file(path)
+        if job_id in data:
+            data.pop(job_id)
+            save_file(path, data)
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 @app.route("/")
@@ -137,11 +162,112 @@ def run():
 
     return jsonify({"ok": True})
 
+@app.route("/download/<filetype>")
+def download(filetype):
+    if filetype == "csv":
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        path = generate_csv()
+        return send_file(path, as_attachment=True, download_name=f"job_results_{date_str}.csv")
+    elif filetype == "skills":
+        return send_file(generate_skills_txt(), as_attachment=True, download_name="skill_clusters.txt")
+    elif filetype == "plan":
+        return send_file(generate_plan_txt(), as_attachment=True, download_name="study_plan.txt")
+    return "Not found", 404
+
+# ─── Job Status Routes ────────────────────────────────────────────────────────
+@app.route("/applied", methods=["GET"])
+def get_applied():
+    return jsonify(load_file(APPLIED_FILE))
+
+@app.route("/applied/mark", methods=["POST"])
+def mark_applied():
+    data = request.get_json()
+    job = data.get("job")
+    if not job:
+        return jsonify({"error": "No job provided"}), 400
+    job_id = job.get("url") or job.get("title")
+    remove_from_all(job_id)
+    job["applied_at"] = get_timestamp()
+    applied = load_file(APPLIED_FILE)
+    applied[job_id] = job
+    save_file(APPLIED_FILE, applied)
+    return jsonify({"ok": True})
+
+@app.route("/applied/unmark", methods=["POST"])
+def unmark_applied():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    applied = load_file(APPLIED_FILE)
+    applied.pop(job_id, None)
+    save_file(APPLIED_FILE, applied)
+    return jsonify({"ok": True})
+
+@app.route("/applied/reject", methods=["POST"])
+def reject_applied():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    applied = load_file(APPLIED_FILE)
+    job = applied.pop(job_id, None)
+    save_file(APPLIED_FILE, applied)
+    if job:
+        job["rejected_at"] = get_timestamp()
+        rejected = load_file(REJECTED_FILE)
+        rejected[job_id] = job
+        save_file(REJECTED_FILE, rejected)
+    return jsonify({"ok": True})
+
+@app.route("/not_interested", methods=["GET"])
+def get_not_interested():
+    return jsonify(load_file(NOT_INTERESTED_FILE))
+
+@app.route("/not_interested/mark", methods=["POST"])
+def mark_not_interested():
+    data = request.get_json()
+    job = data.get("job")
+    if not job:
+        return jsonify({"error": "No job provided"}), 400
+    job_id = job.get("url") or job.get("title")
+    remove_from_all(job_id)
+    job["hidden_at"] = get_timestamp()
+    ni = load_file(NOT_INTERESTED_FILE)
+    ni[job_id] = job
+    save_file(NOT_INTERESTED_FILE, ni)
+    return jsonify({"ok": True})
+
+@app.route("/not_interested/restore", methods=["POST"])
+def restore_not_interested():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    ni = load_file(NOT_INTERESTED_FILE)
+    ni.pop(job_id, None)
+    save_file(NOT_INTERESTED_FILE, ni)
+    return jsonify({"ok": True})
+
+@app.route("/rejected", methods=["GET"])
+def get_rejected():
+    return jsonify(load_file(REJECTED_FILE))
+
+@app.route("/rejected/restore", methods=["POST"])
+def restore_rejected():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    rejected = load_file(REJECTED_FILE)
+    job = rejected.pop(job_id, None)
+    save_file(REJECTED_FILE, rejected)
+    if job:
+        job.pop("rejected_at", None)
+        job["applied_at"] = job.get("applied_at", get_timestamp())
+        applied = load_file(APPLIED_FILE)
+        applied[job_id] = job
+        save_file(APPLIED_FILE, applied)
+    return jsonify({"ok": True})
+
 @app.route("/salary_stats")
 def salary_stats():
     jobs = state["scored_jobs"] or state["jobs"]
-    annual = [j for j in jobs if classify_salary(j.get("salary","")) == "annual"]
-    hourly = [j for j in jobs if classify_salary(j.get("salary","")) == "hourly"]
+    annual  = [j for j in jobs if classify_salary(j.get("salary","")) == "annual"]
+    hourly  = [j for j in jobs if classify_salary(j.get("salary","")) == "hourly"]
     missing = [j for j in jobs if classify_salary(j.get("salary","")) == "missing"]
 
     def summarize(group):
@@ -158,59 +284,40 @@ def salary_stats():
             "url": j.get("url","")
         } for j in sorted(group, key=lambda x: x.get("fit_score",0) if x.get("fit_score","") != "" else 0, reverse=True)]
 
-    return jsonify({
-        "annual": summarize(annual),
-        "hourly": summarize(hourly),
-        "missing": summarize(missing)
-    })
+    return jsonify({"annual": summarize(annual), "hourly": summarize(hourly), "missing": summarize(missing)})
 
 @app.route("/load_csv", methods=["POST"])
 def load_csv():
-    """Load an existing job_results CSV and populate salary tabs."""
     if "csv_file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-
     file = request.files["csv_file"]
     if not file.filename.endswith(".csv"):
         return jsonify({"error": "File must be a .csv"}), 400
-
     try:
         import io
         content_str = file.read().decode("utf-8")
         reader = csv.reader(io.StringIO(content_str))
         headers = next(reader, None)
-
         if not headers:
             return jsonify({"error": "Empty CSV"}), 400
 
-        # Detect column indices
         def col(name):
-            name = name.lower()
             for i, h in enumerate(headers):
-                if h.lower().strip() == name:
+                if h.lower().strip() == name.lower():
                     return i
             return None
 
         idx = {
-            "title": col("title"),
-            "company": col("company"),
-            "location": col("location"),
-            "salary": col("salary"),
-            "salary_type": col("salary type"),
-            "fit_score": col("fit score"),
-            "response_probability": col("response probability"),
-            "missing_skills": col("missing skills"),
-            "verdict": col("verdict"),
-            "url": col("url"),
+            "title": col("title"), "company": col("company"), "location": col("location"),
+            "salary": col("salary"), "salary_type": col("salary type"),
+            "fit_score": col("fit score"), "response_probability": col("response probability"),
+            "missing_skills": col("missing skills"), "verdict": col("verdict"), "url": col("url"),
         }
 
         annual, hourly, missing_salary = [], [], []
 
         for row in reader:
-            if not row or not any(row):
-                continue
-            # Skip section header rows like "--- ANNUAL SALARY ---"
-            if row[0].startswith("---"):
+            if not row or not any(row) or row[0].startswith("---"):
                 continue
 
             def get(key):
@@ -221,52 +328,30 @@ def load_csv():
             missing = [s.strip() for s in get("missing_skills").split("|") if s.strip()]
 
             job = {
-                "title": get("title"),
-                "company": get("company"),
-                "location": get("location"),
-                "salary": get("salary"),
-                "fit_score": get("fit_score"),
+                "title": get("title"), "company": get("company"), "location": get("location"),
+                "salary": get("salary"), "fit_score": get("fit_score"),
                 "response_probability": get("response_probability"),
-                "missing_skills": missing,
-                "matched_skills": [],
-                "verdict": get("verdict"),
-                "url": get("url"),
+                "missing_skills": missing, "matched_skills": [],
+                "verdict": get("verdict"), "url": get("url"),
             }
 
-            if salary_type == "annual":
-                annual.append(job)
-            elif salary_type == "hourly":
-                hourly.append(job)
-            else:
-                missing_salary.append(job)
+            if salary_type == "annual": annual.append(job)
+            elif salary_type == "hourly": hourly.append(job)
+            else: missing_salary.append(job)
 
         def sort_by_fit(group):
             def fit_key(j):
-                try:
-                    return int(j.get("fit_score", 0))
-                except:
-                    return 0
+                try: return int(j.get("fit_score", 0))
+                except: return 0
             return sorted(group, key=fit_key, reverse=True)
 
         return jsonify({
-            "annual": sort_by_fit(annual),
-            "hourly": sort_by_fit(hourly),
+            "annual": sort_by_fit(annual), "hourly": sort_by_fit(hourly),
             "missing": sort_by_fit(missing_salary),
             "total": len(annual) + len(hourly) + len(missing_salary)
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-@app.route("/download/<filetype>")
-def download(filetype):
-    if filetype == "csv":
-        return send_file(generate_csv(), as_attachment=True, download_name="job_results.csv")
-    elif filetype == "skills":
-        return send_file(generate_skills_txt(), as_attachment=True, download_name="skill_clusters.txt")
-    elif filetype == "plan":
-        return send_file(generate_plan_txt(), as_attachment=True, download_name="study_plan.txt")
-    return "Not found", 404
 
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 def run_pipeline(config):
@@ -340,7 +425,6 @@ def save_jobs():
 # ─── Step 1: Scrape ───────────────────────────────────────────────────────────
 def scrape_jobs(config):
     from playwright.sync_api import sync_playwright
-
     all_jobs = []
 
     with sync_playwright() as p:
@@ -393,10 +477,7 @@ def scrape_jobs(config):
                             "company": company.inner_text().strip() if company else "",
                             "location": location_el.inner_text().strip() if location_el else "",
                             "url": "https://www.linkedin.com" + link.get_attribute("href"),
-                            "keyword": keyword,
-                            "description": "",
-                            "salary": "",
-                            "scored": False
+                            "keyword": keyword, "description": "", "salary": "", "scored": False
                         })
 
         browser.close()
@@ -414,7 +495,6 @@ def scrape_jobs(config):
 # ─── Step 2: Fetch Descriptions ───────────────────────────────────────────────
 def fetch_descriptions(config):
     from playwright.sync_api import sync_playwright
-
     jobs = state["jobs"]
 
     with sync_playwright() as p:
@@ -484,7 +564,6 @@ def fetch_descriptions(config):
 # ─── Step 3: Score Jobs ───────────────────────────────────────────────────────
 def score_jobs(config):
     import anthropic
-
     resume = config.get("resume_text", "No resume provided")
     profession = config.get("profession", "the relevant field")
     client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
@@ -512,16 +591,12 @@ JOB DESCRIPTION:
 
 Respond ONLY in this exact JSON format, no other text:
 {{
-  "fit_score": <0-100, how well candidate matches this specific job>,
-  "matched_skills": ["specific skill or experience from resume that matches job requirement"],
-  "missing_skills": ["specific requirement in JD that candidate lacks or has not demonstrated"],
-  "response_probability": <0-100, realistic chance of getting a callback given competition and fit>,
-  "general_gaps": "2 honest sentences on the biggest gaps between candidate and this role",
-  "resume_suggestions": [
-    "Concrete suggestion 1 referencing actual job requirement",
-    "Concrete suggestion 2 referencing actual job requirement",
-    "Concrete suggestion 3 referencing actual job requirement"
-  ],
+  "fit_score": <0-100>,
+  "matched_skills": ["skill1", "skill2"],
+  "missing_skills": ["skill1", "skill2"],
+  "response_probability": <0-100>,
+  "general_gaps": "2 honest sentences on the biggest gaps",
+  "resume_suggestions": ["suggestion 1", "suggestion 2", "suggestion 3"],
   "verdict": "One direct sentence: should they apply and why"
 }}"""
 
@@ -558,7 +633,6 @@ Respond ONLY in this exact JSON format, no other text:
 # ─── Step 4: Clusters + Plan ──────────────────────────────────────────────────
 def generate_clusters_and_plan(config):
     import anthropic
-
     profession = config.get("profession", "the relevant field")
     client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
     jobs = state["scored_jobs"] or state["jobs"]
@@ -569,7 +643,6 @@ def generate_clusters_and_plan(config):
         all_missing.extend(job.get("missing_skills", []))
     freq = Counter(all_missing).most_common(40)
     skill_list = "\n".join([f"- {s} ({c}x)" for s, c in freq])
-
     job_summaries = "\n".join([
         f"- {j['title']} @ {j['company']} | fit: {j.get('fit_score', '?')} | missing: {', '.join(j.get('missing_skills', [])[:3])}"
         for j in sorted(jobs, key=lambda x: x.get('fit_score', 0), reverse=True)[:30]
@@ -579,31 +652,19 @@ def generate_clusters_and_plan(config):
 
 A candidate is applying to {len(jobs)} job listings. Based on their resume and skill gaps, do two things:
 
-1. SKILL CLUSTERS: Group the missing skills into 6-8 meaningful clusters relevant to {profession or "their target roles"}.
-   For each cluster:
-   - name: clear cluster name
-   - skills: list of skills included
-   - score_boost: realistic fit score increase if learned (0-15)
-   - jobs_impacted: how many of the {len(jobs)} jobs would benefit
-   - days: days of focused study to reach interview-ready level
-   - resource: one specific named learning resource with URL
-   - priority: high / medium / low based on ROI
+1. SKILL CLUSTERS: Group missing skills into 6-8 clusters. For each:
+   name, skills, score_boost (0-15), jobs_impacted, days, resource, priority (high/medium/low)
 
 2. STUDY PLAN: 4-week day-by-day plan. Highest ROI first. Week 4 = apply + polish.
-   Each day:
-   - focus, tasks (3 specific actions), deliverable (portfolio/CV output), hours (2-4)
+   Each day: focus, tasks (3), deliverable, hours (2-4)
 
 RESUME: {resume[:2000]}
-
 TOP JOBS: {job_summaries}
-
 MISSING SKILLS: {skill_list}
 
 Respond ONLY in JSON:
-{{
-  "clusters": [{{"name":"","skills":[],"score_boost":0,"jobs_impacted":0,"days":0,"resource":"","priority":"high"}}],
-  "study_plan": [{{"week":1,"theme":"","days":[{{"day":1,"focus":"","tasks":["","",""],"deliverable":"","hours":3}}]}}]
-}}"""
+{{"clusters": [{{"name":"","skills":[],"score_boost":0,"jobs_impacted":0,"days":0,"resource":"","priority":"high"}}],
+"study_plan": [{{"week":1,"theme":"","days":[{{"day":1,"focus":"","tasks":["","",""],"deliverable":"","hours":3}}]}}]}}"""
 
     try:
         response = client.messages.create(
@@ -625,9 +686,8 @@ Respond ONLY in JSON:
         state["clusters"] = []
         state["study_plan"] = []
 
-# ─── File Generators ──────────────────────────────────────────────────────────
+# ─── Salary Classification ────────────────────────────────────────────────────
 def classify_salary(salary_str):
-    """Returns annual, hourly, or missing"""
     if not salary_str or not salary_str.strip():
         return "missing"
     s = salary_str.lower()
@@ -639,40 +699,39 @@ def classify_salary(salary_str):
     if numbers:
         try:
             val = int(numbers[0])
-            if val > 1000:
-                return "annual"
-            elif val < 500:
-                return "hourly"
-        except:
-            pass
+            if val > 1000: return "annual"
+            elif val < 500: return "hourly"
+        except: pass
     return "annual"
 
+# ─── File Generators ──────────────────────────────────────────────────────────
 def generate_csv():
     jobs = state["scored_jobs"] or state["jobs"]
-
     for job in jobs:
         job["salary_type"] = classify_salary(job.get("salary", ""))
 
-    annual = [j for j in jobs if j["salary_type"] == "annual"]
-    hourly = [j for j in jobs if j["salary_type"] == "hourly"]
+    annual  = [j for j in jobs if j["salary_type"] == "annual"]
+    hourly  = [j for j in jobs if j["salary_type"] == "hourly"]
     missing = [j for j in jobs if j["salary_type"] == "missing"]
 
-    path = OUTPUTS_DIR / "job_results.csv"
+    from datetime import datetime
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    path = OUTPUTS_DIR / f"job_results_{date_str}.csv"
+
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Title", "Company", "Location", "Salary", "Salary Type",
-                         "Fit Score", "Response Probability", "Missing Skills", "Verdict", "URL"])
+        writer.writerow(["Title","Company","Location","Salary","Salary Type",
+                         "Fit Score","Response Probability","Missing Skills","Verdict","URL"])
 
         def write_section(section_jobs, label):
             if section_jobs:
                 writer.writerow([f"--- {label} ({len(section_jobs)} jobs) ---"])
                 for job in sorted(section_jobs, key=lambda x: x.get("fit_score", 0), reverse=True):
                     writer.writerow([
-                        job.get("title", ""), job.get("company", ""), job.get("location", ""),
-                        job.get("salary", ""), job.get("salary_type", ""),
-                        job.get("fit_score", ""), job.get("response_probability", ""),
-                        " | ".join(job.get("missing_skills", [])), job.get("verdict", ""),
-                        job.get("url", "")
+                        job.get("title",""), job.get("company",""), job.get("location",""),
+                        job.get("salary",""), job.get("salary_type",""),
+                        job.get("fit_score",""), job.get("response_probability",""),
+                        " | ".join(job.get("missing_skills",[])), job.get("verdict",""), job.get("url","")
                     ])
                 writer.writerow([])
 

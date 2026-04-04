@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ML Job Scraper</title>
+<title>Job Scraper Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -17,449 +17,96 @@
     --muted: #5a5a72;
     --card: #13131c;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Grid background */
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
   }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 60px 24px; position: relative; z-index: 1; }
 
-  .wrap {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 60px 24px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Header */
-  header {
-    margin-bottom: 56px;
-  }
-
-  .badge {
-    display: inline-block;
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--accent);
-    border: 1px solid rgba(124,106,255,0.3);
-    padding: 4px 10px;
-    border-radius: 2px;
-    margin-bottom: 16px;
-  }
-
-  h1 {
-    font-family: 'Syne', sans-serif;
-    font-size: clamp(32px, 5vw, 52px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: 12px;
-  }
-
+  header { margin-bottom: 56px; }
+  .badge { display: inline-block; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); border: 1px solid rgba(124,106,255,0.3); padding: 4px 10px; border-radius: 2px; margin-bottom: 16px; }
+  h1 { font-family: 'Syne', sans-serif; font-size: clamp(32px, 5vw, 52px); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px; }
   h1 span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
-  .subtitle {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  /* Mode selector */
-  .mode-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 40px;
-  }
-
-  .mode-card {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 16px;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: var(--card);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .mode-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent);
-    transform: scaleX(0);
-    transition: transform 0.2s;
-  }
-
+  .mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 40px; }
+  .mode-card { border: 1px solid var(--border); border-radius: 8px; padding: 20px 16px; cursor: pointer; transition: all 0.2s; background: var(--card); position: relative; overflow: hidden; }
+  .mode-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); transform: scaleX(0); transition: transform 0.2s; }
   .mode-card:hover { border-color: rgba(124,106,255,0.4); }
   .mode-card.active { border-color: var(--accent); background: rgba(124,106,255,0.05); }
   .mode-card.active::before { transform: scaleX(1); }
-
-  .mode-icon {
-    font-size: 20px;
-    margin-bottom: 8px;
-  }
-
-  .mode-name {
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .mode-desc {
-    font-size: 10px;
-    color: var(--muted);
-    line-height: 1.5;
-  }
-
-  .mode-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 10px;
-  }
-
-  .tag {
-    font-size: 9px;
-    padding: 2px 6px;
-    border-radius: 2px;
-    background: rgba(124,106,255,0.1);
-    color: var(--accent);
-    letter-spacing: 0.05em;
-  }
-
+  .mode-icon { font-size: 20px; margin-bottom: 8px; }
+  .mode-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .mode-desc { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .mode-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  .tag { font-size: 9px; padding: 2px 6px; border-radius: 2px; background: rgba(124,106,255,0.1); color: var(--accent); letter-spacing: 0.05em; }
   .tag.green { background: rgba(106,255,180,0.1); color: var(--accent3); }
   .tag.pink { background: rgba(255,106,138,0.1); color: var(--accent2); }
 
-  /* Form */
-  .form-section {
-    margin-bottom: 32px;
-  }
-
-  .section-label {
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .field-grid {
-    display: grid;
-    gap: 12px;
-  }
-
+  .form-section { margin-bottom: 32px; }
+  .section-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .field-grid { display: grid; gap: 12px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  label {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-  }
-
-  input, textarea, select {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    outline: none;
-    transition: border-color 0.15s;
-    width: 100%;
-  }
-
-  input:focus, textarea:focus, select:focus {
-    border-color: var(--accent);
-  }
-
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
+  input, textarea, select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 10px 12px; border-radius: 6px; outline: none; transition: border-color 0.15s; width: 100%; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   input::placeholder, textarea::placeholder { color: var(--muted); }
+  select option { background: #1a1a2e; }
 
-  /* File upload */
-  .upload-zone {
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    padding: 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-  }
-
+  .upload-zone { border: 1px dashed var(--border); border-radius: 6px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
   .upload-zone:hover { border-color: var(--accent); background: rgba(124,106,255,0.03); }
   .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-
   .upload-icon { font-size: 24px; margin-bottom: 8px; }
   .upload-text { font-size: 11px; color: var(--muted); }
   .upload-name { font-size: 11px; color: var(--accent3); margin-top: 4px; }
-
-  /* Hidden sections */
   .hidden { display: none !important; }
 
-  /* Run button */
-  .run-btn {
-    width: 100%;
-    padding: 16px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Syne', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.02em;
-    position: relative;
-    overflow: hidden;
-    margin-top: 8px;
-  }
-
+  .run-btn { width: 100%; padding: 16px; background: var(--accent); color: white; border: none; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; margin-top: 8px; }
   .run-btn:hover { background: #6a58f0; transform: translateY(-1px); }
   .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .run-btn.running { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
 
-  .run-btn.running {
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-  }
-
-  .stop-btn {
-    width: 100%;
-    padding: 12px;
-    background: transparent;
-    color: var(--accent2);
-    border: 1px solid rgba(255,106,138,0.4);
-    border-radius: 8px;
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 8px;
-    display: none;
-  }
-  .stop-btn:hover { background: rgba(255,106,138,0.08); border-color: var(--accent2); }
-
-  .reset-btn {
-    width: 100%;
-    padding: 12px;
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 8px;
-    display: none;
-  }
+  .stop-btn { width: 100%; padding: 12px; background: transparent; color: var(--accent2); border: 1px solid rgba(255,106,138,0.4); border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: none; }
+  .stop-btn:hover { background: rgba(255,106,138,0.08); }
+  .reset-btn { width: 100%; padding: 12px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px; display: none; }
   .reset-btn:hover { border-color: rgba(124,106,255,0.4); color: var(--text); }
 
-  /* Skills tags in job cards */
-  .skills-section { margin-top: 8px; }
-  .skills-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-  .skills-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
-  .skill-tag { font-size: 9px; padding: 2px 6px; border-radius: 3px; }
-  .skill-tag.matched { background: rgba(106,255,180,0.08); color: var(--accent3); border: 1px solid rgba(106,255,180,0.2); }
-  .skill-tag.missing { background: rgba(255,106,138,0.08); color: var(--accent2); border: 1px solid rgba(255,106,138,0.2); }
-
-  /* Progress */
-  .progress-wrap {
-    margin-top: 32px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--card);
-  }
-
-  .progress-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .progress-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .stage-pill {
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 20px;
-    background: rgba(124,106,255,0.15);
-    color: var(--accent);
-  }
-
+  .progress-wrap { margin-top: 32px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card); }
+  .progress-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .progress-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; }
+  .stage-pill { font-size: 10px; padding: 3px 8px; border-radius: 20px; background: rgba(124,106,255,0.15); color: var(--accent); }
   .stage-pill.done { background: rgba(106,255,180,0.15); color: var(--accent3); }
   .stage-pill.error { background: rgba(255,106,138,0.15); color: var(--accent2); }
-
-  .log-box {
-    padding: 16px;
-    height: 200px;
-    overflow-y: auto;
-    font-size: 11px;
-    line-height: 1.8;
-    color: var(--muted);
-  }
-
+  .log-box { padding: 16px; height: 200px; overflow-y: auto; font-size: 11px; line-height: 1.8; color: var(--muted); }
   .log-box .ok { color: var(--accent3); }
   .log-box .err { color: var(--accent2); }
-
-  /* Stats */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border-top: 1px solid var(--border);
-  }
-
-  .stat {
-    padding: 16px;
-    background: var(--card);
-    text-align: center;
-  }
-
-  .stat-num {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--accent);
-  }
-
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
+  .stat { padding: 16px; background: var(--card); text-align: center; }
+  .stat-num { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--accent); }
   .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-  /* Downloads */
-  .downloads {
-    margin-top: 32px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-
-  .dl-btn {
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--card);
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-    text-decoration: none;
-    display: block;
-  }
-
+  .downloads { margin-top: 32px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .dl-btn { padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block; }
   .dl-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .dl-btn:disabled { opacity: 0.3; pointer-events: none; }
-
   .dl-icon { font-size: 20px; display: block; margin-bottom: 6px; }
   .dl-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px; }
   .dl-desc { color: var(--muted); font-size: 10px; margin-top: 2px; }
 
-  /* Spinner */
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 2px solid rgba(124,106,255,0.3);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-
-  select option { background: #1a1a2e; }
-
-  @media (max-width: 600px) {
-    .mode-grid { grid-template-columns: 1fr; }
-    .field-row { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: 1fr; }
-    .downloads { grid-template-columns: 1fr; }
-  }
-
   /* Salary tabs */
-  .tab-btn {
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    padding: 8px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
+  .tab-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 8px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
   .tab-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(124,106,255,0.05); }
   .tab-btn:hover { border-color: rgba(124,106,255,0.4); }
   .tab-count { font-size: 10px; padding: 1px 6px; background: rgba(124,106,255,0.15); border-radius: 10px; }
 
   /* Job cards */
-  .job-card {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 10px;
-    background: var(--card);
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    align-items: start;
-    transition: border-color 0.15s;
-  }
+  .job-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 10px; background: var(--card); display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; transition: border-color 0.15s; }
   .job-card:hover { border-color: rgba(124,106,255,0.3); }
+  .job-card.applied-card { opacity: 0.7; border-color: rgba(106,255,180,0.2); }
   .job-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
   .job-company { font-size: 11px; color: var(--muted); }
   .job-meta { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
@@ -470,15 +117,40 @@
   .job-verdict { font-size: 10px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .job-link { font-size: 11px; color: var(--accent); text-decoration: none; white-space: nowrap; margin-top: 2px; }
   .job-link:hover { text-decoration: underline; }
+  .skills-section { margin-top: 8px; }
+  .skills-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .skills-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skill-tag { font-size: 9px; padding: 2px 6px; border-radius: 3px; }
+  .skill-tag.matched { background: rgba(106,255,180,0.08); color: var(--accent3); border: 1px solid rgba(106,255,180,0.2); }
+  .skill-tag.missing { background: rgba(255,106,138,0.08); color: var(--accent2); border: 1px solid rgba(255,106,138,0.2); }
+
+  .action-btns { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .apply-btn { font-size: 10px; padding: 5px 10px; border-radius: 4px; border: 1px solid rgba(106,255,180,0.3); background: transparent; color: var(--accent3); cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s; white-space: nowrap; }
+  .apply-btn:hover { background: rgba(106,255,180,0.08); }
+  .apply-btn.applied { border-color: rgba(106,255,180,0.15); color: var(--muted); cursor: default; }
+  .apply-btn.danger { border-color: rgba(255,106,138,0.3); color: var(--accent2); }
+  .apply-btn.danger:hover { background: rgba(255,106,138,0.08); }
+  .apply-btn.neutral { border-color: var(--border); color: var(--muted); }
+  .apply-btn.neutral:hover { border-color: rgba(124,106,255,0.4); color: var(--text); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(124,106,255,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+
+  @media (max-width: 600px) {
+    .mode-grid { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr; }
+    .downloads { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <div class="badge">ML Job Intelligence</div>
+    <div class="badge">Job Intelligence</div>
     <h1>Job Scraper<br><span>Dashboard</span></h1>
-    <p class="subtitle">Scrape LinkedIn jobs, score them against your resume with Claude AI,<br>and get a personalized skill gap study plan.</p>
+    <p class="subtitle">Scrape LinkedIn jobs, score them against your resume with Claude AI,<br>and get a personalised skill gap study plan.</p>
   </header>
 
   <!-- Mode Selection -->
@@ -488,50 +160,31 @@
       <div class="mode-icon">🔍</div>
       <div class="mode-name">Scraper Only</div>
       <div class="mode-desc">Scrape LinkedIn jobs and export to CSV. No AI needed.</div>
-      <div class="mode-tags">
-        <span class="tag">LinkedIn credentials</span>
-        <span class="tag">Keywords</span>
-        <span class="tag">Location</span>
-      </div>
+      <div class="mode-tags"><span class="tag">Credentials</span><span class="tag">Keywords</span></div>
     </div>
     <div class="mode-card" onclick="setMode('with_scoring')" id="mode-with_scoring">
       <div class="mode-icon">🎯</div>
       <div class="mode-name">Scraper + AI Score</div>
-      <div class="mode-desc">Scrape jobs and score each one against your resume with Claude.</div>
-      <div class="mode-tags">
-        <span class="tag green">+ Resume</span>
-        <span class="tag green">+ Claude API Key</span>
-      </div>
+      <div class="mode-desc">Scrape and score each job against your resume with Claude.</div>
+      <div class="mode-tags"><span class="tag green">+ Resume</span><span class="tag green">+ API Key</span></div>
     </div>
     <div class="mode-card" onclick="setMode('full')" id="mode-full">
       <div class="mode-icon">🧠</div>
       <div class="mode-name">Full Analysis</div>
       <div class="mode-desc">Everything above + skill gap clusters + 4-week study plan.</div>
-      <div class="mode-tags">
-        <span class="tag pink">+ Study Plan</span>
-        <span class="tag pink">+ Skill Clusters</span>
-      </div>
+      <div class="mode-tags"><span class="tag pink">+ Study Plan</span><span class="tag pink">+ Clusters</span></div>
     </div>
   </div>
 
-  <!-- Form -->
   <form id="main-form" onsubmit="startRun(event)">
     <input type="hidden" id="mode-input" name="mode" value="scraper_only">
 
     <!-- LinkedIn Credentials -->
     <div class="form-section">
       <div class="section-label">LinkedIn Credentials</div>
-      <div class="field-grid">
-        <div class="field-row">
-          <div class="field">
-            <label>Email</label>
-            <input type="email" name="email" placeholder="your@email.com" required>
-          </div>
-          <div class="field">
-            <label>Password</label>
-            <input type="password" name="password" placeholder="••••••••" required>
-          </div>
-        </div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" name="email" placeholder="your@email.com" required></div>
+        <div class="field"><label>Password</label><input type="password" name="password" placeholder="••••••••" required></div>
       </div>
     </div>
 
@@ -539,19 +192,12 @@
     <div class="form-section">
       <div class="section-label">Search Configuration</div>
       <div class="field-grid">
-        <div class="field">
-          <label>Keywords (comma separated)</label>
-          <input type="text" name="keywords" placeholder="e.g. Software Engineer, Product Manager, Data Scientist">
+        <div class="field"><label>Keywords (comma separated)</label><input type="text" name="keywords" placeholder="e.g. Machine Learning Engineer, Data Scientist, Software Engineer"></div>
+        <div class="field-row">
+          <div class="field"><label>Location</label><input type="text" name="location" placeholder="Vienna" value="Vienna"></div>
+          <div class="field"><label>Profession / field <span style="color:var(--muted);font-size:10px">(for AI scorer)</span></label><input type="text" name="profession" placeholder="e.g. ML Engineer, UX Designer"></div>
         </div>
         <div class="field-row">
-          <div class="field">
-            <label>Location</label>
-            <input type="text" name="location" placeholder="Vienna" value="Vienna">
-          </div>
-          <div class="field">
-            <label>Your profession / field</label>
-            <input type="text" name="profession" placeholder="e.g. ML Engineer, UX Designer, Product Manager">
-          </div>
           <div class="field">
             <label>Pages per keyword</label>
             <select name="pages">
@@ -560,19 +206,19 @@
               <option value="10">10 pages (~250 jobs)</option>
             </select>
           </div>
-        </div>
-        <div class="field">
-          <label>Time Filter</label>
-          <select name="time_filter">
-            <option value="r86400">Last 24 hours</option>
-            <option value="r604800" selected>Last week</option>
-            <option value="r2592000">Last month</option>
-          </select>
+          <div class="field">
+            <label>Time Filter</label>
+            <select name="time_filter">
+              <option value="r86400">Last 24 hours</option>
+              <option value="r604800" selected>Last week</option>
+              <option value="r2592000">Last month</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Resume + API Key (hidden for scraper_only) -->
+    <!-- AI Fields -->
     <div id="ai-fields">
       <div class="form-section">
         <div class="section-label">Resume</div>
@@ -583,13 +229,9 @@
           <div class="upload-name" id="file-name"></div>
         </div>
       </div>
-
       <div class="form-section">
         <div class="section-label">Claude API Key</div>
-        <div class="field">
-          <label>Anthropic API Key (from console.anthropic.com)</label>
-          <input type="password" name="anthropic_key" id="anthropic-key" placeholder="sk-ant-...">
-        </div>
+        <div class="field"><label>Anthropic API Key (console.anthropic.com)</label><input type="password" name="anthropic_key" placeholder="sk-ant-..."></div>
       </div>
     </div>
 
@@ -606,37 +248,24 @@
     </div>
     <div class="log-box" id="log-box"></div>
     <div class="stats-row">
-      <div class="stat">
-        <div class="stat-num" id="stat-scraped">0</div>
-        <div class="stat-label">Jobs Scraped</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num" id="stat-scored">0</div>
-        <div class="stat-label">Jobs Scored</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num" id="stat-stage">—</div>
-        <div class="stat-label">Current Stage</div>
-      </div>
+      <div class="stat"><div class="stat-num" id="stat-scraped">0</div><div class="stat-label">Jobs Scraped</div></div>
+      <div class="stat"><div class="stat-num" id="stat-scored">0</div><div class="stat-label">Jobs Scored</div></div>
+      <div class="stat"><div class="stat-num" id="stat-stage">—</div><div class="stat-label">Current Stage</div></div>
     </div>
   </div>
 
   <!-- Downloads -->
-  <!-- Downloads -->
   <div class="downloads" id="downloads" style="display:none; margin-top: 32px;">
     <a class="dl-btn" href="/download/csv" id="dl-csv">
-      <span class="dl-icon">📊</span>
-      <span class="dl-name">job_results.csv</span>
-      <span class="dl-desc">All jobs split by salary type,<br>sorted by fit score</span>
+      <span class="dl-icon">📊</span><span class="dl-name">job_results.csv</span>
+      <span class="dl-desc">Jobs split by salary type,<br>sorted by fit score</span>
     </a>
     <a class="dl-btn" href="/download/skills" id="dl-skills">
-      <span class="dl-icon">🎯</span>
-      <span class="dl-name">skill_clusters.txt</span>
-      <span class="dl-desc">Clustered skill gaps<br>ranked by score boost</span>
+      <span class="dl-icon">🎯</span><span class="dl-name">skill_clusters.txt</span>
+      <span class="dl-desc">Skill gaps ranked<br>by score boost</span>
     </a>
     <a class="dl-btn" href="/download/plan" id="dl-plan">
-      <span class="dl-icon">📅</span>
-      <span class="dl-name">study_plan.txt</span>
+      <span class="dl-icon">📅</span><span class="dl-name">study_plan.txt</span>
       <span class="dl-desc">4-week day-by-day<br>learning roadmap</span>
     </a>
   </div>
@@ -647,7 +276,7 @@
     <div style="border: 1px solid var(--border); border-radius: 8px; padding: 20px; background: var(--card); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
       <div style="flex: 1; min-width: 200px;">
         <div style="font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 4px;">Open a previous CSV</div>
-        <div style="font-size: 11px; color: var(--muted);">Load a job_results CSV from a previous run to browse salary tabs without re-scraping.</div>
+        <div style="font-size: 11px; color: var(--muted);">Load a job_results CSV from a previous run to browse tabs without re-scraping.</div>
       </div>
       <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div class="upload-zone" style="padding: 10px 16px; display: inline-flex; align-items: center; gap: 8px; width: auto; text-align: left;">
@@ -660,25 +289,25 @@
     </div>
   </div>
 
-  <!-- Salary Tabs -->
+  <!-- Salary + Status Tabs -->
   <div id="salary-section" style="display:none; margin-top: 40px;">
     <div class="section-label">Jobs by Salary Type</div>
-
-    <div style="display:flex; gap:8px; margin-bottom:16px;">
-      <button class="tab-btn active" onclick="showTab('annual')" id="tab-annual">
-        💰 Annual <span id="count-annual" class="tab-count">0</span>
-      </button>
-      <button class="tab-btn" onclick="showTab('hourly')" id="tab-hourly">
-        ⏱ Hourly <span id="count-hourly" class="tab-count">0</span>
-      </button>
-      <button class="tab-btn" onclick="showTab('missing')" id="tab-missing">
-        ❓ Not Listed <span id="count-missing" class="tab-count">0</span>
-      </button>
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+      <button class="tab-btn active" onclick="showTab('annual')" id="tab-annual">💰 Annual <span id="count-annual" class="tab-count">0</span></button>
+      <button class="tab-btn" onclick="showTab('hourly')" id="tab-hourly">⏱ Hourly <span id="count-hourly" class="tab-count">0</span></button>
+      <button class="tab-btn" onclick="showTab('missing')" id="tab-missing">❓ Not Listed <span id="count-missing" class="tab-count">0</span></button>
+      <button class="tab-btn" onclick="showTab('applied')" id="tab-applied" style="border-color:rgba(106,255,180,0.3);color:var(--accent3);">✅ Applied <span id="count-applied" class="tab-count" style="background:rgba(106,255,180,0.15);">0</span></button>
+      <button class="tab-btn" onclick="showTab('not-interested')" id="tab-not-interested" style="border-color:rgba(255,106,138,0.3);color:var(--accent2);">🚫 Not Interested <span id="count-not-interested" class="tab-count" style="background:rgba(255,106,138,0.15);">0</span></button>
+      <button class="tab-btn" onclick="showTab('rejected')" id="tab-rejected" style="border-color:rgba(255,200,100,0.3);color:#ffc864;">✗ Rejected <span id="count-rejected" class="tab-count" style="background:rgba(255,200,100,0.15);">0</span></button>
+      <button onclick="downloadAppliedCsv()" style="margin-left:auto;font-size:11px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent3)';this.style.color='var(--accent3)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↓ Export Applied CSV</button>
     </div>
 
     <div id="jobs-annual" class="job-list"></div>
     <div id="jobs-hourly" class="job-list" style="display:none"></div>
     <div id="jobs-missing" class="job-list" style="display:none"></div>
+    <div id="jobs-applied" class="job-list" style="display:none"></div>
+    <div id="jobs-not-interested" class="job-list" style="display:none"></div>
+    <div id="jobs-rejected" class="job-list" style="display:none"></div>
   </div>
 
 </div>
@@ -686,24 +315,247 @@
 <script>
   let currentMode = 'scraper_only';
   let polling = null;
+  let activeTab = 'annual';
 
+  // ── Job Registry ──────────────────────────────────────────────────────────
+  const jobRegistry = {};
+  let jobRegistryCounter = 0;
+
+  function registerJob(job) {
+    const key = 'job_' + (jobRegistryCounter++);
+    jobRegistry[key] = job;
+    return key;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let appliedJobs       = new Set();
+  let notInterestedJobs = new Set();
+  let rejectedJobs      = new Set();
+  let allJobsCache      = { annual: [], hourly: [], missing: [] };
+
+  // ── Salary Tab Rendering ──────────────────────────────────────────────────
+  function renderSalaryTab(tab, jobs) {
+    const filtered = jobs.filter(j => {
+      const id = j.url || j.title;
+      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id);
+    });
+    const msgs = { annual: 'No annual salary jobs.', hourly: 'No hourly rate jobs.', missing: 'No salary not listed jobs.' };
+    document.getElementById('count-' + tab).textContent = filtered.length;
+    document.getElementById('jobs-' + tab).innerHTML = filtered.length
+      ? filtered.map(renderJobCard).join('')
+      : `<p style="color:var(--muted);font-size:12px;padding:16px">${msgs[tab]}</p>`;
+  }
+
+  function reRenderSalaryTabs() {
+    renderSalaryTab('annual', allJobsCache.annual);
+    renderSalaryTab('hourly', allJobsCache.hourly);
+    renderSalaryTab('missing', allJobsCache.missing);
+  }
+
+  function renderJobCard(job) {
+    const fit     = job.fit_score !== '' ? `<span class="job-tag fit">Fit: ${job.fit_score}</span>` : '';
+    const prob    = job.response_probability !== '' ? `<span class="job-tag prob">Callback: ${job.response_probability}%</span>` : '';
+    const salary  = job.salary ? `<span class="job-tag salary">${job.salary}</span>` : '';
+    const verdict = job.verdict ? `<div class="job-verdict">${job.verdict}</div>` : '';
+    const matched = (job.matched_skills || []).slice(0, 5);
+    const missing = (job.missing_skills || []).slice(0, 5);
+    const matchedHtml = matched.length ? `<div class="skills-section"><div class="skills-label">✓ Matched</div><div class="skills-wrap">${matched.map(s=>`<span class="skill-tag matched">${s}</span>`).join('')}</div></div>` : '';
+    const missingHtml = missing.length ? `<div class="skills-section"><div class="skills-label">✗ Missing</div><div class="skills-wrap">${missing.map(s=>`<span class="skill-tag missing">${s}</span>`).join('')}</div></div>` : '';
+    const regKey = registerJob(job);
+    const jobId  = job.url || job.title;
+    const isApplied = appliedJobs.has(jobId);
+
+    return `
+      <div class="job-card" id="card-${encodeURIComponent(jobId)}">
+        <div style="flex:1">
+          <div class="job-title">${job.title}</div>
+          <div class="job-company">${job.company} · ${job.location || ''}</div>
+          <div class="job-meta">${fit}${prob}${salary}</div>
+          ${verdict}${matchedHtml}${missingHtml}
+          <div class="action-btns">
+            <button class="apply-btn ${isApplied ? 'applied' : ''}" ${isApplied ? 'disabled' : ''}
+              onclick="markApplied(jobRegistry['${regKey}'])">✅ ${isApplied ? 'Applied' : 'Mark Applied'}</button>
+            <button class="apply-btn danger"
+              onclick="markNotInterested(jobRegistry['${regKey}'])">🚫 Not Interested</button>
+          </div>
+        </div>
+        <a class="job-link" href="${job.url}" target="_blank">View →</a>
+      </div>`;
+  }
+
+  // ── Status Card Renderer ──────────────────────────────────────────────────
+  function renderStatusCard(job, status) {
+    const jobId  = job.url || job.title;
+    const fit    = job.fit_score ? `<span class="job-tag fit">Fit: ${job.fit_score}</span>` : '';
+    const prob   = job.response_probability ? `<span class="job-tag prob">Callback: ${job.response_probability}%</span>` : '';
+    const sal    = job.salary ? `<span class="job-tag salary">${job.salary}</span>` : '';
+    const missing = (job.missing_skills || []).slice(0, 5);
+    const missingHtml = missing.length ? `<div class="skills-section"><div class="skills-label">✗ Missing</div><div class="skills-wrap">${missing.map(s=>`<span class="skill-tag missing">${s}</span>`).join('')}</div></div>` : '';
+    const encodedId = encodeURIComponent(jobId);
+
+    let timestamp = '', actions = '';
+
+    if (status === 'applied') {
+      timestamp = job.applied_at ? `<div class="job-verdict">Applied: ${job.applied_at}</div>` : '';
+      actions = `
+        <button class="apply-btn danger" data-jobid="${encodedId}" onclick="rejectApplied(decodeURIComponent(this.dataset.jobid))">✗ Mark Rejected</button>
+        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="unmarkApplied(decodeURIComponent(this.dataset.jobid))">↩ Undo</button>`;
+    } else if (status === 'not-interested') {
+      timestamp = job.hidden_at ? `<div class="job-verdict">Hidden: ${job.hidden_at}</div>` : '';
+      actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreNotInterested(decodeURIComponent(this.dataset.jobid))">↩ Restore</button>`;
+    } else if (status === 'rejected') {
+      timestamp = job.rejected_at ? `<div class="job-verdict">Rejected: ${job.rejected_at}</div>` : '';
+      actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreRejected(decodeURIComponent(this.dataset.jobid))">↩ Move back to Applied</button>`;
+    }
+
+    return `
+      <div class="job-card applied-card">
+        <div style="flex:1">
+          <div class="job-title">${job.title}</div>
+          <div class="job-company">${job.company} · ${job.location || ''}</div>
+          <div class="job-meta">${fit}${prob}${sal}</div>
+          ${timestamp}${missingHtml}
+          <div class="action-btns">${actions}</div>
+        </div>
+        <a class="job-link" href="${job.url}" target="_blank">View →</a>
+      </div>`;
+  }
+
+  // ── Load All Status From Server ────────────────────────────────────────────
+  async function loadAllStatus() {
+    try {
+      const [appRes, niRes, rejRes] = await Promise.all([
+        fetch('/applied'), fetch('/not_interested'), fetch('/rejected')
+      ]);
+      const appData = await appRes.json();
+      const niData  = await niRes.json();
+      const rejData = await rejRes.json();
+
+      appliedJobs       = new Set(Object.keys(appData));
+      notInterestedJobs = new Set(Object.keys(niData));
+      rejectedJobs      = new Set(Object.keys(rejData));
+
+      document.getElementById('count-applied').textContent = Object.keys(appData).length;
+      document.getElementById('count-not-interested').textContent = Object.keys(niData).length;
+      document.getElementById('count-rejected').textContent = Object.keys(rejData).length;
+
+      document.getElementById('jobs-applied').innerHTML = Object.keys(appData).length
+        ? Object.values(appData).map(j => renderStatusCard(j, 'applied')).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No applied jobs yet.</p>';
+
+      document.getElementById('jobs-not-interested').innerHTML = Object.keys(niData).length
+        ? Object.values(niData).map(j => renderStatusCard(j, 'not-interested')).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No hidden jobs yet.</p>';
+
+      document.getElementById('jobs-rejected').innerHTML = Object.keys(rejData).length
+        ? Object.values(rejData).map(j => renderStatusCard(j, 'rejected')).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No rejected jobs yet.</p>';
+
+      reRenderSalaryTabs();
+    } catch(e) { console.error('Could not load status', e); }
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  async function markApplied(job) {
+    const jobId = job.url || job.title;
+    await fetch('/applied/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+    await loadAllStatus();
+  }
+
+  async function unmarkApplied(jobId) {
+    await fetch('/applied/unmark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId}) });
+    await loadAllStatus();
+  }
+
+  async function rejectApplied(jobId) {
+    await fetch('/applied/reject', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId}) });
+    await loadAllStatus();
+  }
+
+  async function markNotInterested(job) {
+    await fetch('/not_interested/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+    await loadAllStatus();
+  }
+
+  async function restoreNotInterested(jobId) {
+    await fetch('/not_interested/restore', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId}) });
+    await loadAllStatus();
+  }
+
+  async function restoreRejected(jobId) {
+    await fetch('/rejected/restore', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId}) });
+    await loadAllStatus();
+  }
+
+  // ── Download Applied CSV ──────────────────────────────────────────────────
+  async function downloadAppliedCsv() {
+    const res = await fetch('/applied');
+    const data = await res.json();
+    const jobs = Object.values(data);
+    if (!jobs.length) { alert('No applied jobs to export yet.'); return; }
+    const headers = ['Title','Company','Location','Salary','Fit Score','Response Probability','Missing Skills','Verdict','Applied At','URL'];
+    const rows = jobs.map(j => [j.title,j.company,j.location,j.salary,j.fit_score,j.response_probability,(j.missing_skills||[]).join(' | '),j.verdict,j.applied_at||'',j.url]);
+    const csv_content = [headers,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv_content],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`applied_jobs_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function showTab(tab) {
+    activeTab = tab;
+    ['annual','hourly','missing','applied','not-interested','rejected'].forEach(t => {
+      document.getElementById('jobs-' + t).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    });
+  }
+
+  // ── Load CSV ──────────────────────────────────────────────────────────────
+  async function loadCsvFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('csv-upload-label').textContent = file.name;
+    document.getElementById('csv-load-status').textContent = 'Loading...';
+
+    const formData = new FormData();
+    formData.append('csv_file', file);
+
+    try {
+      const res = await fetch('/load_csv', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) { document.getElementById('csv-load-status').textContent = '✗ ' + data.error; return; }
+
+      allJobsCache = { annual: data.annual, hourly: data.hourly, missing: data.missing };
+      document.getElementById('count-annual').textContent = data.annual.length;
+      document.getElementById('count-hourly').textContent = data.hourly.length;
+      document.getElementById('count-missing').textContent = data.missing.length;
+
+      await loadAllStatus();
+
+      document.getElementById('salary-section').style.display = 'block';
+      document.getElementById('csv-load-status').textContent = `✓ ${data.total} jobs loaded`;
+      document.getElementById('csv-load-status').style.color = 'var(--accent3)';
+      document.getElementById('salary-section').scrollIntoView({ behavior: 'smooth' });
+    } catch(e) {
+      document.getElementById('csv-load-status').textContent = '✗ Failed to load file';
+    }
+  }
+
+  // ── Pipeline Controls ─────────────────────────────────────────────────────
   function setMode(mode) {
     currentMode = mode;
     document.getElementById('mode-input').value = mode;
     document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
     document.getElementById('mode-' + mode).classList.add('active');
-
     const aiFields = document.getElementById('ai-fields');
-    if (mode === 'scraper_only') {
-      aiFields.classList.add('hidden');
-    } else {
-      aiFields.classList.remove('hidden');
-    }
+    if (mode === 'scraper_only') aiFields.classList.add('hidden');
+    else aiFields.classList.remove('hidden');
   }
 
   function showFileName(input) {
-    const name = input.files[0]?.name || '';
-    document.getElementById('file-name').textContent = name;
+    document.getElementById('file-name').textContent = input.files[0]?.name || '';
   }
 
   async function startRun(e) {
@@ -720,20 +572,13 @@
     document.getElementById('stop-btn').style.display = 'block';
     document.getElementById('reset-btn').style.display = 'none';
 
-    const form = document.getElementById('main-form');
-    const formData = new FormData(form);
-
+    const formData = new FormData(document.getElementById('main-form'));
     try {
       const res = await fetch('/run', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.error) {
-        showError(data.error);
-        return;
-      }
+      if (data.error) { showError(data.error); return; }
       startPolling();
-    } catch (err) {
-      showError(err.message);
-    }
+    } catch (err) { showError(err.message); }
   }
 
   function startPolling() {
@@ -742,29 +587,20 @@
         const res = await fetch('/status');
         const data = await res.json();
         updateUI(data);
-        if (!data.running) {
-          clearInterval(polling);
-          onComplete(data);
-        }
-      } catch (e) {}
+        if (!data.running) { clearInterval(polling); onComplete(data); }
+      } catch(e) {}
     }, 1500);
   }
 
   function updateUI(data) {
-    // Stage pill
     const pill = document.getElementById('stage-pill');
     pill.textContent = data.stage || 'Running';
     pill.className = 'stage-pill';
     if (data.stage === 'Done ✓') pill.classList.add('done');
     if (data.stage === 'Error') pill.classList.add('error');
-
-    // Stats
     document.getElementById('stat-scraped').textContent = data.job_count;
     document.getElementById('stat-scored').textContent = data.scored_count;
-    document.getElementById('stat-stage').textContent =
-      data.stage.length > 8 ? data.stage.slice(0, 8) + '…' : data.stage;
-
-    // Log
+    document.getElementById('stat-stage').textContent = data.stage.length > 8 ? data.stage.slice(0,8)+'…' : data.stage;
     const box = document.getElementById('log-box');
     box.innerHTML = data.log.map(line => {
       const cls = line.startsWith('✓') ? 'ok' : line.startsWith('✗') ? 'err' : '';
@@ -773,51 +609,18 @@
     box.scrollTop = box.scrollHeight;
   }
 
-  async function stopRun() {
-    const res = await fetch('/stop', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('stop-btn').style.display = 'none';
-      document.getElementById('stop-btn').textContent = '⚠ Stopping...';
-    }
-  }
-
-  async function resetRun() {
-    const res = await fetch('/reset', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('reset-btn').style.display = 'none';
-      document.getElementById('run-btn').disabled = false;
-      document.getElementById('run-btn').classList.remove('running');
-      document.getElementById('run-btn').innerHTML = 'Run Pipeline';
-      document.getElementById('progress').style.display = 'none';
-      document.getElementById('downloads').style.display = 'none';
-      document.getElementById('salary-section').style.display = 'none';
-      document.getElementById('log-box').innerHTML = '';
-    }
-  }
-
-  function onComplete(data) {
+  async function onComplete(data) {
     const btn = document.getElementById('run-btn');
-    const stopBtn = document.getElementById('stop-btn');
-    const resetBtn = document.getElementById('reset-btn');
-
     btn.disabled = false;
     btn.classList.remove('running');
-    stopBtn.style.display = 'none';
+    document.getElementById('stop-btn').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'block';
 
-    if (data.error) {
-      btn.innerHTML = '✗ Error — try again';
-      resetBtn.style.display = 'block';
-      return;
-    }
+    if (data.error) { btn.innerHTML = '✗ Error — try again'; return; }
 
     const stopped = data.stage === 'Stopped ⚠';
     btn.innerHTML = stopped ? '⚠ Stopped — Run Again' : '✓ Done — Run Again';
-    resetBtn.style.display = 'block';
-
     document.getElementById('downloads').style.display = 'grid';
-    loadSalaryStats();
 
     if (currentMode === 'scraper_only') {
       document.getElementById('dl-skills').classList.add('hidden');
@@ -825,6 +628,39 @@
     } else if (currentMode === 'with_scoring') {
       document.getElementById('dl-plan').classList.add('hidden');
     }
+
+    // Load jobs from salary_stats
+    try {
+      const res = await fetch('/salary_stats');
+      const statsData = await res.json();
+      allJobsCache = { annual: statsData.annual, hourly: statsData.hourly, missing: statsData.missing };
+      document.getElementById('count-annual').textContent = statsData.annual.length;
+      document.getElementById('count-hourly').textContent = statsData.hourly.length;
+      document.getElementById('count-missing').textContent = statsData.missing.length;
+      await loadAllStatus();
+      document.getElementById('salary-section').style.display = 'block';
+    } catch(e) {}
+  }
+
+  async function stopRun() {
+    await fetch('/stop', { method: 'POST' });
+    document.getElementById('stop-btn').textContent = '⚠ Stopping...';
+    document.getElementById('stop-btn').disabled = true;
+  }
+
+  async function resetRun() {
+    await fetch('/reset', { method: 'POST' });
+    document.getElementById('reset-btn').style.display = 'none';
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').classList.remove('running');
+    document.getElementById('run-btn').innerHTML = 'Run Pipeline';
+    document.getElementById('stop-btn').style.display = 'none';
+    document.getElementById('stop-btn').disabled = false;
+    document.getElementById('stop-btn').textContent = '⚠ Stop Pipeline';
+    document.getElementById('progress').style.display = 'none';
+    document.getElementById('downloads').style.display = 'none';
+    document.getElementById('salary-section').style.display = 'none';
+    document.getElementById('log-box').innerHTML = '';
   }
 
   function showError(msg) {
@@ -833,132 +669,13 @@
     btn.classList.remove('running');
     btn.innerHTML = '✗ Error — try again';
     document.getElementById('log-box').innerHTML = `<div class="err">Error: ${msg}</div>`;
+    document.getElementById('stop-btn').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'block';
   }
 
-  // Salary tabs
-  let activeTab = 'annual';
-
-  function showTab(tab) {
-    activeTab = tab;
-    ['annual','hourly','missing'].forEach(t => {
-      document.getElementById('jobs-' + t).style.display = t === tab ? 'block' : 'none';
-      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-    });
-  }
-
-  function renderJobCard(job) {
-    const fit = job.fit_score !== '' ? `<span class="job-tag fit">Fit: ${job.fit_score}</span>` : '';
-    const prob = job.response_probability !== '' ? `<span class="job-tag prob">Callback: ${job.response_probability}%</span>` : '';
-    const salary = job.salary ? `<span class="job-tag salary">${job.salary}</span>` : '';
-    const verdict = job.verdict ? `<div class="job-verdict">${job.verdict}</div>` : '';
-
-    const matched = (job.matched_skills || []).slice(0, 5);
-    const missing = (job.missing_skills || []).slice(0, 5);
-
-    const matchedHtml = matched.length ? `
-      <div class="skills-section">
-        <div class="skills-label">✓ Matched</div>
-        <div class="skills-wrap">${matched.map(s => `<span class="skill-tag matched">${s}</span>`).join('')}</div>
-      </div>` : '';
-
-    const missingHtml = missing.length ? `
-      <div class="skills-section">
-        <div class="skills-label">✗ Missing</div>
-        <div class="skills-wrap">${missing.map(s => `<span class="skill-tag missing">${s}</span>`).join('')}</div>
-      </div>` : '';
-
-    return `
-      <div class="job-card">
-        <div>
-          <div class="job-title">${job.title}</div>
-          <div class="job-company">${job.company} · ${job.location || ''}</div>
-          <div class="job-meta">${fit}${prob}${salary}</div>
-          ${verdict}
-          ${matchedHtml}
-          ${missingHtml}
-        </div>
-        <a class="job-link" href="${job.url}" target="_blank">View →</a>
-      </div>`;
-  }
-
-  async function loadSalaryStats() {
-    try {
-      const res = await fetch('/salary_stats');
-      const data = await res.json();
-
-      document.getElementById('count-annual').textContent = data.annual.length;
-      document.getElementById('count-hourly').textContent = data.hourly.length;
-      document.getElementById('count-missing').textContent = data.missing.length;
-
-      document.getElementById('jobs-annual').innerHTML = data.annual.length
-        ? data.annual.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No annual salary jobs found.</p>';
-
-      document.getElementById('jobs-hourly').innerHTML = data.hourly.length
-        ? data.hourly.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No hourly rate jobs found.</p>';
-
-      document.getElementById('jobs-missing').innerHTML = data.missing.length
-        ? data.missing.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No jobs with missing salary.</p>';
-
-      document.getElementById('salary-section').style.display = 'block';
-    } catch(e) {
-      console.error('Could not load salary stats', e);
-    }
-  }
-
-  // Load existing CSV
-  async function loadCsvFile(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    document.getElementById('csv-upload-label').textContent = file.name;
-    document.getElementById('csv-load-status').textContent = 'Loading...';
-
-    const formData = new FormData();
-    formData.append('csv_file', file);
-
-    try {
-      const res = await fetch('/load_csv', { method: 'POST', body: formData });
-      const data = await res.json();
-
-      if (data.error) {
-        document.getElementById('csv-load-status').textContent = '✗ ' + data.error;
-        return;
-      }
-
-      // Populate salary tabs with loaded data
-      document.getElementById('count-annual').textContent = data.annual.length;
-      document.getElementById('count-hourly').textContent = data.hourly.length;
-      document.getElementById('count-missing').textContent = data.missing.length;
-
-      document.getElementById('jobs-annual').innerHTML = data.annual.length
-        ? data.annual.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No annual salary jobs found.</p>';
-
-      document.getElementById('jobs-hourly').innerHTML = data.hourly.length
-        ? data.hourly.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No hourly rate jobs found.</p>';
-
-      document.getElementById('jobs-missing').innerHTML = data.missing.length
-        ? data.missing.map(renderJobCard).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No jobs with missing salary.</p>';
-
-      document.getElementById('salary-section').style.display = 'block';
-      document.getElementById('csv-load-status').textContent = `✓ ${data.total} jobs loaded`;
-      document.getElementById('csv-load-status').style.color = 'var(--accent3)';
-
-      // Scroll to tabs
-      document.getElementById('salary-section').scrollIntoView({ behavior: 'smooth' });
-
-    } catch(e) {
-      document.getElementById('csv-load-status').textContent = '✗ Failed to load file';
-    }
-  }
-
-  // Init
+  // ── Init ──────────────────────────────────────────────────────────────────
   setMode('scraper_only');
+  loadAllStatus();
 </script>
 </body>
 </html>
