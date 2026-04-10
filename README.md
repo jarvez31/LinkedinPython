@@ -1,4 +1,4 @@
-# KarrierPython — Job Intelligence Dashboard
+# LinkedinPython — Job Intelligence Dashboard
 
 > Scrape LinkedIn jobs, score them against your resume with Claude AI, and get a personalised skill gap study plan. Works for any profession, any location.
 
