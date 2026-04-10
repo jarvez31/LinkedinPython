@@ -1,0 +1,1539 @@
+SKILL GAP ANALYSIS
+============================================================
+
+   16x  German language proficiency
+    7x  CI/CD pipelines
+    7x  German language skills
+    6x  TypeScript
+    5x  Full-stack web development
+    5x  Frontend development
+    4x  Vector databases
+    4x  Client consulting experience
+    4x  Product management experience
+    4x  Microservices architecture
+    4x  CAD software experience
+    3x  Rust programming
+    3x  Team leadership experience
+    3x  LLM experience (GPT, Claude, etc.)
+    3x  Stakeholder management
+    3x  Enterprise software development
+    3x  Full-stack application development
+    3x  Top-tier product company experience
+    3x  GenAI technologies (LLMs, RAG, prompt engineering, vector databases)
+    3x  Java
+    3x  Business stakeholder management
+    3x  German language skills for Austrian market
+    3x  JavaScript
+    3x  Web application development
+    3x  PostgreSQL
+    3x  JavaScript/TypeScript
+    3x  Cloud platforms (AWS/Azure/GCP)
+    3x  AWS cloud services
+    3x  R programming
+    2x  Tool use and function calling
+    2x  JavaScript/ReactJS experience
+    2x  Go programming
+    2x  RAG systems
+    2x  Agent frameworks (LangChain)
+    2x  Production LLM deployment
+    2x  Kubernetes orchestration
+    2x  Cloud platforms (AWS, Azure, GCP)
+    2x  Team leadership and management
+    2x  Customer-facing product development
+    2x  Statsmodels, Matplotlib, Seaborn libraries
+    2x  R programming language
+    2x  Azure Data Factory
+    2x  Apache Airflow
+    2x  Azure cloud platform
+    2x  Production data engineering at scale
+    2x  Node.js
+    2x  React
+    2x  Engineering calculations and simulations experience
+    2x  System design and optimization background
+    2x  Understanding of practical engineering constraints
+    2x  Infrastructure as Code (Terraform, Ansible, Puppet)
+    2x  Business intelligence systems
+    2x  Web application architecture
+    2x  VoIP technologies
+    2x  AWS cloud platform
+    2x  C++ proficiency
+    2x  Kubernetes
+    2x  Web development experience
+    2x  ETL/ELT processes
+    2x  Customer relationship management
+    2x  Academic content creation for educational purposes
+    2x  Mixpanel experience
+    2x  Trading strategy development
+    2x  Client-facing consulting experience
+    2x  Cross-functional team leadership
+    2x  Business consulting experience
+    2x  Power BI
+    2x  Russian language fluency
+    2x  SQL production experience
+    2x  Direct business stakeholder communication
+    2x  SAS or SPSS experience
+    2x  Russian language fluency (critical requirement)
+    2x  Content/media analytics experience
+    2x  Power BI expertise
+    2x  Banking/financial services experience
+    2x  SQL proficiency
+    2x  5+ years product management experience
+    2x  Budget planning and control
+    2x  Product strategy and roadmap ownership
+    2x  Stakeholder management across commercial teams
+    2x  Go-to-market collaboration
+    2x  Salesforce platform experience
+    2x  Salesforce certifications (AI Specialist, etc.)
+    2x  Presales and sales support experience
+    2x  Business development collaboration
+    2x  Business strategy development
+    2x  MS Office proficiency
+    2x  Jetpack Compose
+    2x  Sales experience
+    2x  Client relationship management
+    2x  Airflow orchestration
+    2x  Data visualization tools
+    2x  People management
+    2x  Understanding of MiCAR and DORA regulations
+    2x  Experience managing outsourcing within global group structure
+    2x  Experience with regulatory audits and inspections
+    1x  Publications in top-tier ML venues (NeurIPS, ICML, ICLR, JMLR)
+    1x  Transformer architectures experience
+    1x  Large-scale generative AI systems
+    1x  Financial/quantitative domain knowledge
+    1x  PhD in ML/AI (has aerospace engineering background)
+    1x  Experience with modern LLMs and generative models
+    1x  State-of-the-art model scaling
+    1x  Commercial SaaS product development experience
+    1x  NLP/text processing experience
+    1x  Information retrieval systems
+    1x  Backend engineering in business environments
+    1x  Experience with business stakeholders and product teams
+    1x  Large-scale production ML systems at enterprise level
+    1x  Hands-on experience with LLMs (OpenAI, Anthropic, etc.)
+    1x  Agent frameworks like LangChain
+    1x  RAG systems implementation
+    1x  Conversational AI development
+    1x  5+ years MLOps experience (has ~2-3 years)
+    1x  5+ years total ML experience (has ~4 years)
+    1x  Kubernetes experience
+    1x  CI/CD pipeline implementation
+    1x  Airflow or similar orchestration tools
+    1x  Kubeflow experience
+    1x  Large-scale production system maintenance
+    1x  NLP and Generative AI experience
+    1x  Computer Vision architectures like YOLO
+    1x  Multi-modal language models
+    1x  Recommendation systems experience
+    1x  Text classification/NER/caption generation projects
+    1x  Image classification/understanding projects
+    1x  Search systems (OpenSearch/ElasticSearch)
+    1x  Production experience with 100k+ predictions per day
+    1x  Retail/e-commerce domain knowledge
+    1x  NLP and transformer models experience
+    1x  LLM fine-tuning and productionization
+    1x  Email security domain knowledge
+    1x  Kubernetes deployment
+    1x  Model drift monitoring in production
+    1x  Business-focused ML applications
+    1x  CI/CD for ML systems
+    1x  Imbalanced dataset handling at scale
+    1x  Casual puzzle game level design experience
+    1x  Game design fundamentals
+    1x  Difficulty curve design for games
+    1x  Player progression systems
+    1x  Game mechanics design
+    1x  Mobile gaming experience
+    1x  KPI optimization in gaming context
+    1x  C/C++ development
+    1x  Java programming
+    1x  Production-grade application development at top-tier product companies
+    1x  Enterprise software development experience
+    1x  Natural Language Processing or Recommendation Systems experience
+    1x  Large Language Models (GPT-4, Llama 3) implementation
+    1x  Agentic workflows and RAG systems
+    1x  SQL-aware AI agents
+    1x  LLM fine-tuning
+    1x  Cost optimization for LLMs
+    1x  Context window management
+    1x  Medical/healthcare domain knowledge
+    1x  Medical informatics background
+    1x  Hospital/oncology experience
+    1x  ORBIS oncology system experience
+    1x  Medical form configuration
+    1x  Healthcare software development
+    1x  Cancer registry systems
+    1x  Azure Cloud ecosystem
+    1x  Data Warehouse and Data Lake architecture
+    1x  Databricks platform
+    1x  Azure Synapse
+    1x  pySpark
+    1x  Data integration and ETL tools
+    1x  MDM (Master Data Management)
+    1x  Infrastructure as Code (IaC)
+    1x  Azure DevOps
+    1x  Conversational AI
+    1x  TypeScript (primary language requirement)
+    1x  Vue 3 frontend framework
+    1x  NestJS backend framework
+    1x  PostgreSQL database
+    1x  LangGraph/LangChain AI frameworks
+    1x  Langfuse and Agenta tools
+    1x  Educational technology domain experience
+    1x  DevOps practices and tools
+    1x  Security implementation
+    1x  Business development and sales
+    1x  Agile methodology leadership
+    1x  Make-or-buy decision experience
+    1x  Offshore team management
+    1x  High-availability system architecture
+    1x  JavaScript and ReactJS
+    1x  C/C++, Java, Rust, Go
+    1x  System design for web applications
+    1x  Production-grade web application experience
+    1x  SQL database design and optimization
+    1x  UI/UX design
+    1x  SaaS/enterprise software experience
+    1x  Talent acquisition domain knowledge
+    1x  Responsive web application development
+    1x  German fluency (only A2 level)
+    1x  Cloud development (AWS/Azure)
+    1x  LLM and GraphRAG experience
+    1x  Vector database embeddings
+    1x  Consulting/client advisory experience
+    1x  Product Owner/Requirements Engineer experience
+    1x  EU AI regulation knowledge
+    1x  Prompt engineering and optimization
+    1x  Game development pipeline knowledge
+    1x  Multi-model LLM orchestration
+    1x  Game design mechanics understanding
+    1x  Marketing/UA AI applications
+    1x  Production tooling (Jira, GDDs)
+    1x  Real-world AI productivity tools deployment
+    1x  Mechanical Engineering degree or equivalent
+    1x  3+ years construction project management experience
+    1x  Facility mechanical systems experience
+    1x  Data center equipment experience (switchgear, generators, controls, security, fire safety)
+    1x  Construction industry knowledge
+    1x  Commissioning processes understanding
+    1x  Embedding pipelines
+    1x  Prompt engineering
+    1x  Function calling/tool use
+    1x  SQL database operations expertise (only mentions LeetCode SQL 50)
+    1x  Business-focused data science across industries like finance, telecom, healthcare
+    1x  5+ years hands-on data science experience (has 4+ years)
+    1x  Big data processing at scale beyond 11TB research datasets
+    1x  JavaScript, Java, or C++ experience
+    1x  Code review and pull request experience
+    1x  Chat-style developer prompt creation
+    1x  Software engineering workflows beyond ML
+    1x  Educational content development for software engineering
+    1x  German language proficiency (job requires 'sehr gute Deutsch')
+    1x  Cloud architecture experience (AWS/Azure)
+    1x  AI solution architecture for enterprise clients
+    1x  Consulting/client-facing experience
+    1x  Business development and proposal writing
+    1x  Microsoft Azure specific knowledge
+    1x  Enterprise AI implementation experience
+    1x  Shopify development experience
+    1x  Liquid templating language
+    1x  HTML/CSS for web development
+    1x  E-commerce platform expertise
+    1x  Frontend web development focus
+    1x  Shopify store customization experience
+    1x  5+ years software development experience
+    1x  Full-stack development with React
+    1x  Backend systems development
+    1x  pytest framework
+    1x  async/await Python patterns
+    1x  subprocess operations
+    1x  Functional and integration testing experience
+    1x  Computer Science/Software Engineering degree
+    1x  Databricks & Delta Lake
+    1x  PySpark
+    1x  Lakehouse architecture
+    1x  Medallion architecture
+    1x  Data warehousing
+    1x  Batch/streaming pipelines
+    1x  DataOps practices
+    1x  Performance optimization for data workloads
+    1x  Power BI development
+    1x  DAX and Power Query
+    1x  Snowflake or cloud data warehouses
+    1x  Data modeling (star schemas, semantic layers)
+    1x  HR/People domain experience
+    1x  Business intelligence/reporting focus
+    1x  ETL/ELT pipeline design experience
+    1x  Relational database management (PostgreSQL/MySQL)
+    1x  Data schemas and storage system optimization
+    1x  Data validation and monitoring workflows
+    1x  LLM-related data workflows
+    1x  Modern C++ (C++17+)
+    1x  CI/CD tools (Jenkins, GitLab CI, GitHub Actions)
+    1x  Testing frameworks (Google Test, Catch2)
+    1x  Embedded Linux (Yocto)
+    1x  High-performance/real-time systems
+    1x  Distributed systems and networking
+    1x  Performance profiling and optimization
+    1x  C/C++ expertise
+    1x  JavaScript/ReactJS
+    1x  Rust
+    1x  Go
+    1x  Production-grade enterprise software development
+    1x  Multi-language codebase evaluation
+    1x  3+ years TypeScript experience
+    1x  Product engineering experience
+    1x  Frontend development (React, Next.js, Tailwind)
+    1x  PostgreSQL database experience
+    1x  Production software shipping experience
+    1x  GraphQL APIs
+    1x  Postgres
+    1x  Full-stack web applications
+    1x  LLM integration patterns
+    1x  Commercial software development
+    1x  Mechanical Engineering degree (has Aerospace)
+    1x  Experience creating computational engineering problems
+    1x  Azure cloud platform experience
+    1x  Azure Synapse, Azure Data Factory, Microsoft Fabric
+    1x  Azure DevOps CI/CD pipelines
+    1x  Scala or Java development
+    1x  Cloud strategies (IaaS, PaaS, SaaS)
+    1x  Analytics platform development
+    1x  MS-SQL/T-SQL development
+    1x  Database design
+    1x  Stored procedures and functions
+    1x  ERP systems experience
+    1x  Custom reporting
+    1x  Data migration scripts
+    1x  Performance optimization of SQL queries
+    1x  Management reporting
+    1x  Professional C++ development experience
+    1x  High-performance C++ applications
+    1x  Legacy codebase optimization
+    1x  Performance-critical application development
+    1x  Real-time systems experience
+    1x  Modern C++ standards knowledge
+    1x  Agile methodologies experience
+    1x  Degree in Electrical Engineering
+    1x  Electrical engineering domain knowledge
+    1x  Software testing experience (requires minimum 2 years)
+    1x  ISTQB/Tosca/Selenium certifications
+    1x  Java/C++ knowledge
+    1x  Test automation tools (Postman, SOAP UI, Protractor)
+    1x  Database knowledge (SQL, PL/SQL, Oracle)
+    1x  Enterprise applications (SAP, ServiceNow, Salesforce)
+    1x  Manual and automated test case creation
+    1x  German language proficiency (job requires 'sehr gute Deutschkenntnisse')
+    1x  6+ years Python experience
+    1x  Frontend/React development
+    1x  People management of developers
+    1x  E-commerce/CMS experience
+    1x  Polish language requirement
+    1x  Presales technical support
+    1x  Software Quality Engineer experience
+    1x  Quality assurance processes and standards
+    1x  Test automation frameworks
+    1x  Agile QA methodologies
+    1x  Database design knowledge
+    1x  Architecture and design patterns
+    1x  Financial services domain experience
+    1x  Windows systems administration
+    1x  Network administration
+    1x  System testing methodologies
+    1x  Integration/regression testing
+    1x  Hardware/embedded systems
+    1x  Telecommunications systems
+    1x  Quality assurance processes
+    1x  5+ years Golang experience
+    1x  Kubernetes expertise
+    1x  Kubernetes Operators knowledge
+    1x  Object-oriented programming in systems context
+    1x  Cloud-native development experience
+    1x  Software engineering in production environments
+    1x  Panda3D engine experience
+    1x  Godot engine experience
+    1x  GDScript programming
+    1x  Game physics systems
+    1x  Real-time game environment optimization
+    1x  Interactive gameplay mechanics
+    1x  Cross-platform game development
+    1x  Angular 18+ development
+    1x  Frontend testing (Jasmine, Karma)
+    1x  Angular Web Components
+    1x  Responsive Web Design
+    1x  Accessibility standards
+    1x  Frontend leadership experience
+    1x  Security clearance eligibility
+    1x  Windows Server administration
+    1x  Network technology (Routing, Switching, Firewalls)
+    1x  Virtualization (VMware)
+    1x  IP communication systems
+    1x  System integration experience
+    1x  Cisco technologies
+    1x  Installation and configuration of enterprise systems
+    1x  System Engineer role experience
+    1x  Spring Framework
+    1x  JPA
+    1x  Angular
+    1x  Test Driven Development
+    1x  Backend web services
+    1x  5+ years commercial data engineering experience
+    1x  ClickHouse or BigQuery
+    1x  Commercial backend development
+    1x  FinTech domain experience
+    1x  Java development experience
+    1x  CI/CD tools like GitHub Actions and Maven
+    1x  Backend/fullstack engineering in production systems
+    1x  Release management and dependency management
+    1x  CVE management
+    1x  DevOps toolchain beyond Docker
+    1x  Business process automation systems
+    1x  .NET framework
+    1x  HTML/CSS
+    1x  Frontend frameworks
+    1x  REST services development
+    1x  SQL/Oracle databases
+    1x  Agile methodologies (Scrum/Kanban)
+    1x  Windows Server/IIS
+    1x  Full stack web development
+    1x  Java/.NET
+    1x  Stakeholder collaboration in business context
+    1x  Cocos2d-x framework experience
+    1x  Game engine development
+    1x  Computer graphics and rendering pipelines
+    1x  Memory optimization for games
+    1x  Mobile/desktop/console game deployment
+    1x  2D/3D game project experience
+    1x  7+ years backend development experience
+    1x  JVM languages (Scala/Java/Kotlin)
+    1x  AWS Cloud Services
+    1x  NoSQL databases
+    1x  Unit testing frameworks
+    1x  Backend application architecture
+    1x  Production backend systems experience
+    1x  5+ years production backend/distributed systems experience
+    1x  Enterprise system integrations (CRMs, ticketing, telephony)
+    1x  LLM-based production systems
+    1x  Customer-facing role experience
+    1x  Multi-step AI agent development
+    1x  Tool calling and orchestration frameworks
+    1x  Enterprise authentication systems
+    1x  Arabic language skills
+    1x  Large-scale audio/speech data experience (1M+ hours)
+    1x  Audio processing tools (torchaudio, librosa)
+    1x  Speech models (Whisper, Wav2Vec)
+    1x  Audio quality metrics (MOS, WER, PESQ/STOI)
+    1x  Speech-specific tasks (ASR, TTS, diarisation)
+    1x  Data engineering tools (Spark/Beam, Airflow)
+    1x  Audio spectrograms and DSP
+    1x  Godot Game Engine expertise
+    1x  GDScript proficiency
+    1x  Shipped game projects
+    1x  2D/3D game development pipeline experience
+    1x  Game optimization techniques
+    1x  Gameplay systems design
+    1x  SAS expertise
+    1x  Actuarial background
+    1x  Financial services experience
+    1x  SAS to Python migration experience
+    1x  Panda3D framework experience
+    1x  Game loops implementation
+    1x  Interactive application development
+    1x  3D game development focus
+    1x  Performance optimization for games
+    1x  Java/JEE/Spring framework
+    1x  Angular or React
+    1x  HTML5/CSS3
+    1x  SQL and NoSQL databases
+    1x  Kubernetes/OpenShift
+    1x  API management tools (APIGEE, API Connect)
+    1x  5-6 years fullstack development experience
+    1x  10+ years Marketing/Sales applications experience
+    1x  Salesforce, SAP S4, Anaplan, Conga, Adobe AEM expertise
+    1x  Enterprise Architecture frameworks (TOGAF, Zachman, FEAF)
+    1x  ServiceNow CMDB, SAP LeanIX, or Ardoq experience
+    1x  Business requirements to IT capabilities translation
+    1x  Enterprise architecture design and implementation
+    1x  IT strategy and governance
+    1x  Stakeholder management with business leaders
+    1x  Java/Jakarta EE
+    1x  Maven
+    1x  Jenkins
+    1x  application servers (JBOSS/Wildfly, Tomcat)
+    1x  OpenShift
+    1x  database management
+    1x  enterprise software development
+    1x  TDD practices
+    1x  code reviews in enterprise context
+    1x  React frontend development
+    1x  Java backend development
+    1x  Angular framework
+    1x  .NET development
+    1x  2-3 years software development experience
+    1x  Frontend/backend architecture
+    1x  Agile/Scrum methodology
+    1x  Java 17
+    1x  Spring Boot/Spring Cloud/Spring Data
+    1x  MySQL with MyBatis
+    1x  Redis caching
+    1x  RocketMQ message queues
+    1x  Object-oriented design in Java ecosystem
+    1x  High-scale transactional systems
+    1x  Behavior-driven testing
+    1x  Industrial automation systems
+    1x  Manufacturing processes knowledge
+    1x  Control systems experience
+    1x  5-7+ years software development
+    1x  Frontend/backend web technologies
+    1x  Database integration for web applications
+    1x  libGDX framework experience
+    1x  Game development experience
+    1x  2D/3D game design and development
+    1x  Gaming UI implementation
+    1x  Gameplay mechanics implementation
+    1x  Desktop/Android/web game deployment
+    1x  5+ years professional TypeScript development
+    1x  TypeScript application architecture
+    1x  Professional software development experience
+    1x  Clean code practices in TypeScript
+    1x  Code review experience in TypeScript
+    1x  3+ years DevOps experience
+    1x  AWS cloud platforms
+    1x  Kubernetes management
+    1x  Service Mesh concepts
+    1x  TCP/IP networking
+    1x  HTTP protocol
+    1x  Redis/Memcached
+    1x  Nginx
+    1x  Infrastructure monitoring
+    1x  JVM optimization
+    1x  MySQL/Oracle databases
+    1x  PySpark hands-on experience
+    1x  Big data technologies (Spark, Hadoop)
+    1x  Financial Services/Insurance domain
+    1x  Enterprise data engineering
+    1x  Data modeling
+    1x  Senior-level data engineering role
+    1x  AWS core services (EC2, S3, VPC)
+    1x  Terraform Infrastructure as Code
+    1x  Jenkins CI/CD pipelines
+    1x  CloudWatch/Grafana monitoring
+    1x  DevOps-specific experience
+    1x  2+ years AWS work experience
+    1x  Django framework
+    1x  ReactJS
+    1x  PHP
+    1x  OpenSearch
+    1x  Redis
+    1x  RabbitMQ
+    1x  Celery
+    1x  Full-stack development
+    1x  Leading/mentoring developers
+    1x  Software engineering lifecycle in web applications
+    1x  Node.js/TypeScript 5+ years
+    1x  Async programming approaches
+    1x  Kafka/RabbitMQ messaging systems
+    1x  Distributed systems architecture
+    1x  MySQL/PostgreSQL/MongoDB databases
+    1x  Kubernetes hands-on experience
+    1x  E2E and unit testing
+    1x  Backend web development
+    1x  Sales/Vertrieb experience
+    1x  Pharmacy/Apotheken sector knowledge
+    1x  Territory management
+    1x  Product placement and merchandising
+    1x  Revenue target achievement experience
+    1x  Automotive license/driving capability for field sales
+    1x  Design discipline expertise
+    1x  Manufacturing knowledge
+    1x  Technical writing for academic instruction
+    1x  Design engineering coursework
+    1x  2+ years AWS SageMaker experience
+    1x  2+ years Bedrock experience
+    1x  Industrial inspection domain knowledge
+    1x  Video and ultrasonic scan processing
+    1x  AWS cloud infrastructure
+    1x  Production model monitoring systems
+    1x  LLM/GPT API integration
+    1x  Anthropic Claude API experience
+    1x  Prompt engineering for classification
+    1x  Production LLM system ownership
+    1x  JSON schema validation with Pydantic
+    1x  Token budgeting and context window management
+    1x  LLM evaluation frameworks
+    1x  Structured output prompting
+    1x  10+ years pharmaceutical industry experience
+    1x  Senior leadership experience in large organizations
+    1x  Clinical trial design and analysis
+    1x  Digital biomarker/healthcare domain expertise
+    1x  Regulatory affairs knowledge
+    1x  Medical device development experience
+    1x  Team management and strategic roadmap development
+    1x  Cross-industry collaboration at executive level
+    1x  Product analytics experience
+    1x  User behavior analysis
+    1x  Product KPIs (activation, retention, engagement, conversion)
+    1x  A/B testing frameworks
+    1x  GA4/Amplitude experience
+    1x  BI tools (Tableau, Looker)
+    1x  Commercial product experience
+    1x  Team leadership/management experience
+    1x  Generative models (Diffusion, GANs, VAEs, LLMs)
+    1x  Visual quality assessment and aesthetic modeling
+    1x  Design principles knowledge
+    1x  Production scaling at enterprise level
+    1x  Human preference learning
+    1x  Safety monitoring and red-teaming
+    1x  Derivatives experience (options, volatility, structured products)
+    1x  Market microstructure understanding
+    1x  Financial markets knowledge
+    1x  Greeks and options pricing
+    1x  Order-book data experience
+    1x  Backtesting financial strategies
+    1x  Licensed notary or candidate notary credentials
+    1x  Practical experience in notarial matters
+    1x  Knowledge of document authentication and verification
+    1x  Understanding of notarial acts and certification processes
+    1x  EU/UK legal background
+    1x  Experience with regulatory compliance in notarial context
+    1x  PhD degree specifically required
+    1x  Post-PhD experience (candidate has M.Tech + research experience but not PhD + post-PhD)
+    1x  Cross-functional commercial collaboration
+    1x  Patent development experience
+    1x  Technology transfer strategies
+    1x  Biomedical/materials/energy domain expertise
+    1x  German language proficiency for teaching
+    1x  Medical/biomedical engineering education
+    1x  Healthcare/clinical industry experience
+    1x  University teaching experience
+    1x  Medical device regulations (MDR/IVDR)
+    1x  Hospital/medical technology knowledge
+    1x  eHealth/digital health experience
+    1x  Enterprise/Solution Architecture experience
+    1x  Cloud hyperscaler expertise (Azure/AWS/GCP)
+    1x  DevOps/CI/CD pipeline implementation
+    1x  Legacy system modernization
+    1x  IT infrastructure and networking
+    1x  10+ years pharmaceutical/digital health industry experience
+    1x  Senior stakeholder management experience
+    1x  Product management experience in large Pharma/Medtech
+    1x  Clinical trials experience
+    1x  Regulatory strategy experience
+    1x  Digital biomarker development for clinical applications
+    1x  Commercial product development experience
+    1x  Leadership experience managing cross-functional teams
+    1x  Pre-sales and business development experience
+    1x  EU language proficiency (Polish, Dutch, Bulgarian, Danish, Finnish, Greek, Norwegian, Romanian, Swedish, French, German, Italian)
+    1x  Data annotation or content moderation experience
+    1x  Experience with conversational AI evaluation
+    1x  LLM quality assessment experience
+    1x  Personal Google account usage willingness for evaluation
+    1x  Prompt engineering for personalization testing
+    1x  Traditional engineering disciplines focus
+    1x  Manufacturing or design engineering background
+    1x  R, SAS, or SPSS proficiency
+    1x  Traditional statistical consulting experience
+    1x  Business-focused statistical methodology evaluation
+    1x  Dashboard creation tools
+    1x  Data privacy and ethical AI formal training
+    1x  Client-facing statistical consulting
+    1x  LLM deployment and integration experience
+    1x  Claude/Google AI ecosystem experience
+    1x  Automation platforms (Make, Zapier, n8n)
+    1x  REST API integrations for business systems
+    1x  CRM and operational data integration
+    1x  AI agent/GPT building
+    1x  MCP or custom connector frameworks
+    1x  Professional services/legal tech experience
+    1x  Pharma/biotech/healthcare domain experience (mandatory)
+    1x  Real-world data (RWD) methodology
+    1x  Health insurance data/EMR/EHR/claims data
+    1x  FHIR/OMOP data formats
+    1x  Healthcare compliance and GDPR
+    1x  6+ years industry experience
+    1x  A/B testing and experimental design
+    1x  Cloud platforms (AWS, SageMaker)
+    1x  MarTech products experience
+    1x  Digital Asset Management systems
+    1x  Marketing technologies
+    1x  Interface management in marketing context
+    1x  Digital marketing domain knowledge
+    1x  Retail/e-commerce experience
+    1x  Business intelligence tools (Power BI, Tableau)
+    1x  Dashboard and visualization creation
+    1x  Business stakeholder engagement
+    1x  Data governance and compliance
+    1x  Cloud-based data environments
+    1x  API integration experience
+    1x  Commercial software environment experience
+    1x  7+ years data science experience (has 4+ years)
+    1x  Digital biomarker domain expertise
+    1x  Healthcare/medical device industry experience
+    1x  AWS cloud platform experience
+    1x  Regulatory knowledge (MDR/FDA)
+    1x  Leadership of data science teams
+    1x  Diabetes technology exposure
+    1x  PySpark for big data processing
+    1x  Top-tier competitive coding credentials (Kaggle Master+, ICPC, IOI, Codeforces IM+)
+    1x  Business/content strategy experience
+    1x  Social media/content analytics domain knowledge
+    1x  LLM and AI agents development
+    1x  Cloud platforms (AWS, GCP, Azure)
+    1x  Kubeflow and Airflow experience
+    1x  Database and data warehouse experience
+    1x  CI/CD for ML pipelines
+    1x  Model monitoring in production
+    1x  Classification and recommendation models for business problems
+    1x  R or Java programming languages
+    1x  Game design experience
+    1x  Gambling/casino industry knowledge
+    1x  Commercial game development
+    1x  Leadership of game design teams
+    1x  Market analysis and trend identification
+    1x  Product specification and compliance experience
+    1x  Cross-functional team management
+    1x  Stakeholder presentation experience
+    1x  Understanding of regulatory frameworks in gaming
+    1x  Audio/video telecommunications protocols (SIP, RTP, G.711, G.728, WebRTC)
+    1x  IP-based audio/video transmission experience
+    1x  Audio/video test and measurement equipment
+    1x  Embedded hardware and electronic circuitry knowledge
+    1x  Electroacoustics (loudspeakers/microphones)
+    1x  Safety-critical systems experience
+    1x  Anti-fraud/anti-cheat domain experience
+    1x  Transformer-based models
+    1x  Trust & Safety background
+    1x  Security-related ML applications
+    1x  Transactional/financial fraud detection
+    1x  Adversarial pattern detection in gaming/fraud context
+    1x  Business intelligence dashboard creation
+    1x  Data storytelling for business audiences
+    1x  Statistical consulting for non-research contexts
+    1x  Kaggle Master+/ICPC/IOI/Codeforces IM+ credentials
+    1x  LLM/AI agents experience
+    1x  Business strategy communication to C-level
+    1x  CTR/retention/engagement metrics experience
+    1x  dbt framework experience
+    1x  Microsoft SQL Server/Azure ecosystem
+    1x  DAX knowledge
+    1x  Spark experience
+    1x  Microsoft Fabric/Azure Synapse
+    1x  Data modeling in business context
+    1x  Databricks platform experience
+    1x  Scala or Java programming
+    1x  CI/CD pipelines (Azure DevOps, Github)
+    1x  Business Intelligence systems
+    1x  Production analytics platforms
+    1x  Compiler engineering experience
+    1x  MLIR framework
+    1x  Torch-FX
+    1x  TVM
+    1x  IR design
+    1x  Graph compiler passes
+    1x  Hardware accelerator knowledge
+    1x  Code generation experience
+    1x  No-code tools (Make, Webflow)
+    1x  SaaS stack management (Salesforce, Calendly, Slack)
+    1x  Google Cloud platform
+    1x  Business process automation
+    1x  German language
+    1x  PropTech/real estate domain knowledge
+    1x  Top-tier competitive coding credentials (Kaggle Master+, ICPC/IOI medals, Codeforces IM+)
+    1x  Production data science experience in business contexts
+    1x  SQL at production scale
+    1x  Content/media/social platform analytics
+    1x  LLM and AI agents experience
+    1x  Business analytics and strategy translation
+    1x  CTR, retention, engagement metrics experience
+    1x  SAS or R programming
+    1x  Business Intelligence tools (Qlik/Tableau/Power BI)
+    1x  Big Data technologies (Hadoop, Spark, Hive)
+    1x  Stakeholder management skills
+    1x  PowerPoint and presentation skills
+    1x  Business-focused data science experience
+    1x  Building physics expertise
+    1x  Construction engineering background
+    1x  Multi-story residential/commercial building experience
+    1x  Building codes and regulations knowledge
+    1x  Structural engineering calculations
+    1x  Construction supervision experience
+    1x  Planning phases (preliminary design, detailed design, permitting)
+    1x  Quality assurance in construction
+    1x  5+ years building physics experience
+    1x  HR/performance/recruitment tool domain experience
+    1x  People management experience
+    1x  SaaS and B2B product expertise
+    1x  Business strategy and ROI-based prioritization
+    1x  Product Owner role experience
+    1x  Top-tier competitive coding credentials (Kaggle Master+/ICPC/IOI/Codeforces IM+)
+    1x  Production Data Science experience
+    1x  SQL proficiency for analytics
+    1x  Business analytics and KPI optimization
+    1x  LLM/AI agents deployment
+    1x  German language proficiency (requires excellent German)
+    1x  Multimedia systems and digital media technologies focus
+    1x  Misinformation detection experience
+    1x  Java, C, C++, JavaScript programming
+    1x  Web-based systems and databases
+    1x  Formal Computer Science education
+    1x  Teaching experience in CS courses
+    1x  Marketing experience
+    1x  Paid media campaign management
+    1x  Google/Meta/TikTok advertising platforms
+    1x  Marketing funnel management
+    1x  Music industry knowledge
+    1x  Content strategy development
+    1x  Marketing tools proficiency
+    1x  Campaign optimization experience
+    1x  Performance marketing background
+    1x  German language proficiency (only A2 listed)
+    1x  Customer-facing/consulting experience
+    1x  Cloud infrastructure technologies (Azure, AWS, GCP)
+    1x  Microsoft 365 and Copilot experience
+    1x  Agent development in business/enterprise context
+    1x  IT consulting or systems administration
+    1x  Technical certifications in cloud platforms
+    1x  Business value realization and ROI demonstration
+    1x  Sales/pre-sales technical support
+    1x  Mechanical/Electrical engineering background
+    1x  Design and manufacturing expertise
+    1x  Traditional engineering project documentation
+    1x  Hardware/physical systems experience
+    1x  4+ years B2B SaaS product management experience
+    1x  Healthcare/health tech domain experience
+    1x  User story and requirements writing
+    1x  Product metrics definition and tracking
+    1x  Customer discovery and validation experience
+    1x  German language skills (very good required)
+    1x  Client consulting and solution architecture experience
+    1x  Salesforce Data Cloud knowledge
+    1x  AWS (IoT Core, Lambda, ECS)
+    1x  IoT protocols (MQTT, Modbus, M-Bus)
+    1x  Node.js backend development
+    1x  InfluxDB/MongoDB/PostgreSQL
+    1x  Raspberry Pi
+    1x  Engineering team management
+    1x  Production IoT system architecture
+    1x  Edge computing experience
+    1x  BSc in Business/Management or related discipline
+    1x  Proven experience in business expert or industry EP role
+    1x  Business strategy and market analysis experience
+    1x  Stakeholder presentation and business reporting
+    1x  MacOS 15.0+ requirement
+    1x  Business acumen and commercial experience
+    1x  6 years management consulting/sales operations/business strategy experience
+    1x  Management consulting background
+    1x  Business operations experience
+    1x  Sales operations experience
+    1x  Corporate advisory experience
+    1x  Process improvement in business context
+    1x  Looker proficiency
+    1x  Business planning and execution
+    1x  Resource planning
+    1x  Headcount management
+    1x  Business reviews leadership
+    1x  Explicit Computer Science degree
+    1x  Professional certifications (CMME, SAS, CAP)
+    1x  Direct experience designing CS problems for evaluation
+    1x  Structured scoring criteria application experience
+    1x  5+ years museums/cultural institutions/live entertainment industry experience
+    1x  Commercial/partnerships/business development roles
+    1x  High-value relationship management with museums
+    1x  Ticketing platforms and revenue optimization experience
+    1x  Sales and pipeline management
+    1x  German C2 level proficiency
+    1x  CRM systems (Salesforce) experience
+    1x  Museum and attractions landscape knowledge
+    1x  Design and manufacturing domain knowledge
+    1x  Content licensing experience
+    1x  Structured educational material development
+    1x  Business Analysis fundamentals
+    1x  SDLC knowledge
+    1x  Agile/Scrum methodologies
+    1x  Business Requirements Documents (BRDs)
+    1x  User Stories creation
+    1x  Process mapping
+    1x  User Acceptance Testing (UAT)
+    1x  Project documentation
+    1x  GDPR knowledge
+    1x  Jira/Confluence tools
+    1x  PostgreSQL experience
+    1x  OLTP/OLAP database knowledge
+    1x  Workflow orchestration tools
+    1x  Backend software engineering experience
+    1x  Polars experience
+    1x  Full Professional Proficiency in German (candidate only has A2 level)
+    1x  2+ years residence in Austria
+    1x  Familiarity with Austrian business, media, sport, news, social media and cultural affairs
+    1x  Experience with maps, news, audio tasks, and relevance evaluation
+    1x  Web-based data verification and comparison experience
+    1x  Executive Assistant experience
+    1x  Calendar management and scheduling
+    1x  Travel arrangements coordination
+    1x  C-level executive support
+    1x  Office procedures and administrative processes
+    1x  Client management and stakeholder communication
+    1x  Confidential information handling in corporate context
+    1x  US business hours availability
+    1x  German language proficiency (job requires very good German)
+    1x  Robotics hardware experience
+    1x  Humanoid robotics knowledge
+    1x  Current student status (candidate has 4+ years professional experience)
+    1x  Mechanical engineering/mechatronics background
+    1x  Experience with robotics frameworks and hardware platforms
+    1x  B2B SaaS experience
+    1x  Healthcare/regulated environment experience
+    1x  Product requirements writing
+    1x  Success metrics definition
+    1x  Customer discovery and validation
+    1x  5+ years experience (has 4+)
+    1x  Expert SQL and database operations
+    1x  LangChain framework experience
+    1x  MLOps practices beyond basic deployment
+    1x  iOS/SwiftUI development
+    1x  Android/Kotlin development
+    1x  Native mobile app development
+    1x  Mobile app deployment to app stores
+    1x  Retail/e-commerce domain experience
+    1x  Mobile-specific CI/CD pipelines
+    1x  Professional cleaning industry experience
+    1x  Team leadership in operational/service roles
+    1x  Customer service experience
+    1x  Cleaning quality standards knowledge
+    1x  Staff scheduling and planning
+    1x  Complaint management
+    1x  German fluency (very good written/spoken required)
+    1x  Driver's license Class B
+    1x  Intercultural competence in service context
+    1x  Risk management experience
+    1x  BCBS#239/RDARR regulatory knowledge
+    1x  Data governance expertise
+    1x  JIRA/Confluence
+    1x  Data validation/audit experience
+    1x  Financial reporting systems
+    1x  5+ years Android development
+    1x  Expert-level Kotlin
+    1x  Material Design 3
+    1x  UI component development
+    1x  Accessibility (A11y) implementation
+    1x  RTL support
+    1x  Mobile design systems
+    1x  Screenshot tests
+    1x  Compose UI tests
+    1x  Any mobile development experience
+    1x  Finance/Controlling domain knowledge
+    1x  Data integration platforms (ETL/ELT tools)
+    1x  Process automation/RPA tools
+    1x  Low/no-code platforms
+    1x  Cloud services experience
+    1x  LLM and Agentic AI solutions
+    1x  SQL-heavy data engineering
+    1x  PhD in Mathematics
+    1x  Numerical analysis of wave phenomena
+    1x  Boundary element methods
+    1x  hp-Finite element methods
+    1x  Fractional operators
+    1x  Excellent German language skills
+    1x  Grant funding acquisition experience
+    1x  Service teaching in mathematics
+    1x  Werkstudent status (currently enrolled student)
+    1x  German language proficiency for deutschsprachigen Lebenslauf
+    1x  Jira/Confluence experience
+    1x  IT hardware management
+    1x  Service management tools
+    1x  Project management coordination
+    1x  Internal IT support experience
+    1x  Penetration testing experience
+    1x  Web application security testing
+    1x  Infrastructure penetration testing
+    1x  Burp Suite or intercepting proxies
+    1x  C2 frameworks like Cobalt Strike
+    1x  Vulnerability scanners
+    1x  Network security knowledge
+    1x  Active Directory expertise
+    1x  Database security
+    1x  Firewall configuration
+    1x  German language proficiency for reports
+    1x  Cybersecurity certifications
+    1x  Red teaming experience
+    1x  Incident response knowledge
+    1x  MD/PharmD qualification
+    1x  Prior pharmaceutical industry experience
+    1x  Medical Affairs/MSL experience
+    1x  Healthcare professional engagement
+    1x  Knowledge of cardiovascular-metabolic diseases
+    1x  Regulatory/compliance knowledge in pharmaceuticals
+    1x  Medical writing and review experience
+    1x  Austrian driver's license
+    1x  Field-based healthcare engagement experience
+    1x  Electric propulsion systems experience
+    1x  Ion Thrusters/FEEP/HET/PPT knowledge
+    1x  Plasma physics background
+    1x  ECSS standards knowledge
+    1x  Space industry experience
+    1x  Satellite systems engineering
+    1x  Hardware/physical systems design
+    1x  Mission operations experience
+    1x  Certified Community Health Worker credential
+    1x  Community or public health experience
+    1x  Patient care experience
+    1x  Knowledge of community health practices and protocols
+    1x  Experience with electronic health records
+    1x  Public health data systems familiarity
+    1x  Healthcare domain expertise
+    1x  BI/visualization tools (Tableau, Power BI, Looker Studio)
+    1x  CRM platforms (HubSpot, Salesforce)
+    1x  Data warehouses (BigQuery, Snowflake)
+    1x  Automation tools (Zapier, Make)
+    1x  REST API data extraction
+    1x  Business intelligence analysis
+    1x  Client-facing experience
+    1x  Professional services background
+    1x  Pharma marketing experience
+    1x  Brand management experience
+    1x  Marketing strategy development
+    1x  Cross-functional collaboration in commercial context
+    1x  Fluent German (sehr gute Deutschkenntnisse)
+    1x  Sales/commercial mindset
+    1x  KOL relationship building
+    1x  Marketing campaign execution
+    1x  Business reporting and dashboards
+    1x  Data storytelling for non-technical audiences
+    1x  Explicit statistical consulting experience
+    1x  Data privacy and ethical AI knowledge
+    1x  Kotlin
+    1x  Spring Boot
+    1x  SQL in production SaaS environment
+    1x  Technical leadership role experience
+    1x  SaaS product development
+    1x  Code reviews and team mentoring
+    1x  Cross-functional stakeholder alignment
+    1x  Pharmaceutical industry experience
+    1x  GMP/regulatory compliance knowledge
+    1x  Analytical test method development for pharmaceuticals
+    1x  Coagulation analyzers and pipetting robots experience
+    1x  LIMS systems experience
+    1x  Quality control charts specific to pharma
+    1x  Biotechnology/Biochemistry domain knowledge
+    1x  Fluent German (requires 'sehr gute' German skills)
+    1x  10+ years project management experience
+    1x  Change management expertise
+    1x  PMP/PRINCE2/Prosci certifications
+    1x  Multi-stakeholder project leadership
+    1x  Business/commercial project experience
+    1x  Energy industry experience
+    1x  Strategic change execution
+    1x  Program leadership
+    1x  Stakeholder engagement at executive level
+    1x  Modern C++ proficiency
+    1x  Audio DSP programming experience
+    1x  JUCE framework experience
+    1x  Lock-free and multi-threaded programming for real-time audio
+    1x  Commercial audio products experience (VST, DAWs, hardware FX)
+    1x  SIMD optimization for real-time audio
+    1x  Nuclear engineering background
+    1x  Fast reactor technology knowledge
+    1x  Nuclear fuel cycle experience
+    1x  Accelerator driven systems expertise
+    1x  Nuclear safety and regulatory compliance
+    1x  Nuclear power plant operations
+    1x  Fusion-fission hybrid systems
+    1x  Nuclear materials science
+    1x  Reactor physics
+    1x  Nuclear standards and regulatory frameworks
+    1x  German native-level proficiency
+    1x  Content marketing experience
+    1x  Online marketing expertise
+    1x  Social media marketing
+    1x  Negotiation skills
+    1x  Office software proficiency
+    1x  Media/publishing industry knowledge
+    1x  C++ programming
+    1x  HLS C++ and High Level Synthesis
+    1x  Vivado/Catapult tools
+    1x  Video codec hardware/software design
+    1x  Verilog/VHDL design
+    1x  Hardware design experience
+    1x  FPGA development
+    1x  Geological domain expertise
+    1x  Laboratory geological instrumentation
+    1x  Geological mapping and cross-sections
+    1x  Field sampling experience
+    1x  Core inspection/logging
+    1x  Drill cuttings analysis
+    1x  Geological sketches preparation
+    1x  Geophysical/geochemical survey experience
+    1x  Android development
+    1x  Kotlin programming
+    1x  Android Coroutines/Flow
+    1x  Hilt/Dagger
+    1x  Room database
+    1x  MVVM/MVI architecture
+    1x  Mobile app development
+    1x  5+ years Android experience
+    1x  Published Android apps
+    1x  Audio/media processing on Android
+    1x  Plant systematics and phylogenomics expertise
+    1x  Wet-lab genomics experience
+    1x  Plant comparative genomics publications
+    1x  Taxonomic focus on land plants
+    1x  Genomic library preparation for long-read sequencing
+    1x  Gene and species phylogenies experience
+    1x  Plant biology domain knowledge
+    1x  Scala programming
+    1x  Apache Spark
+    1x  GCP to AWS migration experience
+    1x  Data engineering seniority
+    1x  Financial markets experience
+    1x  Energy trading knowledge
+    1x  Quantitative finance background
+    1x  Performance-oriented languages (C++)
+    1x  Financial forecasting
+    1x  Market data experience
+    1x  Algorithmic trading systems
+    1x  Back-testing frameworks
+    1x  Financial risk management
+    1x  Speech recognition and audio processing expertise
+    1x  Experience with Whisper, wav2vec, HuBERT architectures
+    1x  Modern training techniques like LoRA, RLHF, distillation
+    1x  Clinical AI or healthcare domain experience
+    1x  NLP and speech synthesis background
+    1x  AI-native workflow tools like Claude Code, Cursor, Copilot
+    1x  Deterministic Networking
+    1x  Time-Sensitive Networking (TSN)
+    1x  Time-Triggered Ethernet (TTEthernet)
+    1x  Safety-Critical Systems
+    1x  Industrial IoT
+    1x  Automotive Systems
+    1x  Aerospace Engineering Applications
+    1x  Real-time Systems
+    1x  Network Protocols
+    1x  Hardware Integration
+    1x  .NET development experience
+    1x  Web and mobile app development
+    1x  Technical project management from conception to completion
+    1x  Client-facing project management
+    1x  Ticket management and triage
+    1x  Release coordination
+    1x  Customer onboarding
+    1x  Budget and milestone tracking
+    1x  2+ years technical product management experience
+    1x  B2B product strategy experience
+    1x  Cloud technologies (AWS, Azure, GCP)
+    1x  SaaS product experience
+    1x  Go-to-market strategy experience
+    1x  Product roadmap ownership
+    1x  Customer-facing product experience
+    1x  Team leadership in corporate environment
+    1x  Dashboard development (Power BI)
+    1x  Cloud technologies
+    1x  R or Scala
+    1x  SQL database proficiency
+    1x  Healthcare/diagnostics domain experience
+    1x  Business-to-Business Communication experience
+    1x  Client and Vendor Management
+    1x  Project Management Tools usage
+    1x  General business operations experience
+    1x  Administrative/support role experience
+    1x  Availability during U.S. business hours
+    1x  Expert proficiency in Stata SE
+    1x  Econometric modeling experience
+    1x  Panel data analysis
+    1x  Causal inference methods
+    1x  Do-files development and automation
+    1x  Experience with economic/policy research contexts
+    1x  Expert-level SQL (only mentions LeetCode SQL 50)
+    1x  MLOps deployment experience beyond basic Docker/FastAPI
+    1x  Business-focused data science problems across multiple industries
+    1x  5+ years requirement (has 4+ years)
+    1x  Space sector knowledge and experience
+    1x  12+ years work experience (has ~4 years)
+    1x  Economics/Political Science/Law background
+    1x  Policy analysis experience
+    1x  Budget and contract management
+    1x  Space industry understanding
+    1x  Strategic planning experience
+    1x  Think tank or consultancy experience
+    1x  Advanced SQL experience
+    1x  Tableau or data visualization tools
+    1x  A/B testing experimentation
+    1x  Business analytics/insights role experience
+    1x  Stakeholder management and C-suite presentation experience
+    1x  Supply chain or e-commerce domain knowledge
+    1x  Excel expertise
+    1x  Business recommendation focus
+    1x  PySpark experience
+    1x  DBT (required)
+    1x  Data modeling for business applications
+    1x  SaaS company experience
+    1x  Databricks
+    1x  ClickHouse
+    1x  DevOps/CI-CD practices
+    1x  Client-facing data products experience
+    1x  Business stakeholder collaboration
+    1x  Snowflake
+    1x  Google Cloud Platform
+    1x  Java with Spring Boot
+    1x  Kafka
+    1x  Supply chain/retail domain experience
+    1x  Data engineering focus vs ML research
+    1x  C/C++ proficiency
+    1x  Java development
+    1x  Production-grade software architecture
+    1x  System design at scale
+    1x  Elasticsearch administration
+    1x  TiDB/Doris experience
+    1x  MySQL administration
+    1x  Redis administration
+    1x  MongoDB administration
+    1x  AWS database services
+    1x  Database performance tuning
+    1x  Database cluster management
+    1x  Database disaster recovery
+    1x  5+ years of database operations experience
+    1x  Economics/Business/Law degree
+    1x  Tax advisor certification or training
+    1x  German tax law knowledge
+    1x  Client advisory experience
+    1x  German language proficiency (needs excellent level)
+    1x  Accounting/tax preparation experience
+    1x  Business/corporate finance background
+    1x  Commercial education (HAK, FH, University) with Accounting/Tax focus
+    1x  Professional experience in tax consulting firm
+    1x  Knowledge of accounting and tax law
+    1x  Client management experience in tax/accounting
+    1x  BMD NTCS software knowledge
+    1x  Tax return preparation experience
+    1x  Financial statement preparation
+    1x  Balance sheet creation according to UGB
+    1x  Tax audit support
+    1x  Authority communication experience
+    1x  B2B sales experience
+    1x  German language proficiency (candidate only has A2 level)
+    1x  Knowledge of industrial automation/mobile machinery/intralogistik
+    1x  Experience with IEC 61131-3 and Codesys
+    1x  CAN and Ethernet bus systems experience
+    1x  Image processing systems knowledge
+    1x  OEM customer management
+    1x  Sales strategy development
+    1x  Commercial/business development experience
+    1x  Formal Biology degree (has Aerospace Engineering)
+    1x  BioPython library experience
+    1x  Bioinformatics tools and methods
+    1x  Systems biology experience
+    1x  Molecular modeling experience
+    1x  Specific computational biology problem design experience
+    1x  Web product management
+    1x  Team leadership of Product Owners/QA/Dev teams
+    1x  UI/UX design expertise
+    1x  Entrepreneurial/business experience
+    1x  Product backlog management
+    1x  Competitive analysis experience
+    1x  Component-based UI systems knowledge
+    1x  Finance background/qualification
+    1x  Retail/commercial finance experience
+    1x  Sales reporting experience
+    1x  Till system management
+    1x  Stock management processes
+    1x  Budgeting and forecasting
+    1x  FP&A experience
+    1x  Snowflake experience
+    1x  AWS services (S3, Lambda, API Gateway)
+    1x  AWS CDK
+    1x  Financial/pricing calculation systems
+    1x  SAP data integration experience
+    1x  Proven backend architecture at scale
+    1x  German C2 fluency
+    1x  Customer outreach via phone/video calls
+    1x  Salesforce CRM experience
+    1x  Business/commercial focus
+    1x  Customer relationship building
+    1x  Lead generation and pipeline management
+    1x  eCommerce platform knowledge
+    1x  Social media for sales
+    1x  3+ years broker-dealer/financial services experience
+    1x  Cryptocurrency operations experience
+    1x  Trading operations experience
+    1x  KYC and account approval processes
+    1x  Anti-Money Laundering Program knowledge
+    1x  General ledger reconciliation
+    1x  Customer onboarding in financial services
+    1x  Financial regulatory environment familiarity
+    1x  10+ years total experience
+    1x  4+ years product management leadership
+    1x  Experience with 500k+ user products
+    1x  Strategic roadmapping
+    1x  Resource allocation
+    1x  User feedback collection processes
+    1x  Product experimentation frameworks
+    1x  Product launch experience
+    1x  Finance or business degree
+    1x  Professional finance qualifications (ACA, CIMA, ACCA, CPA, MBA)
+    1x  Financial planning and forecasting experience
+    1x  P&L management
+    1x  Budget setting
+    1x  Financial systems (CERPS, Bison, CF/CCC, VISTA)
+    1x  Commercial finance experience
+    1x  Business partnering with commercial teams
+    1x  Pricing analysis
+    1x  ROI modeling
+    1x  Financial reporting and month-end processes
+    1x  8+ years operations leadership in regulated financial services
+    1x  Experience operating crypto-asset or financial services platforms
+    1x  Financial services operations experience
+    1x  Leadership and team management experience
+    1x  Test management experience
+    1x  Test automation tools (Selenium, Power Automate, RPA)
+    1x  Microsoft ecosystem (Azure DevOps, Microsoft 365)
+    1x  Business process knowledge (HR, Finance, Sales)
+    1x  German language (B2+ required)
+    1x  Test case creation and management
+    1x  Quality assurance methodologies
+    1x  Testmanagement-Tools (Jira, Azure DevOps)
+    1x  AWS experience (no mention in resume)
+    1x  LLM/agent systems production experience
+    1x  Distributed systems architecture at scale
+    1x  Backend engineering focus
+    1x  5+ years Python requirement not clearly met
+    1x  Medical/clinical research experience
+    1x  Translational research background
+    1x  Medical imaging analysis
+    1x  Cancer biology knowledge
+    1x  Cardiovascular research experience
+    1x  Immunology research background
+    1x  MLOps 3+ years experience
+    1x  Cloud platforms (AWS/GCP)
+    1x  CI/CD for ML
+    1x  Feature Stores
+    1x  Model Registry
+    1x  KI strategy development
+    1x  Interdisciplinary team coaching
+    1x  8+ years ML/AI experience (has ~4 years)
+    1x  Team leadership and people management experience
+    1x  Strategic planning and business alignment experience
+    1x  Cross-functional collaboration with Product/Engineering teams
+    1x  MLOps/LLMOps at scale
+    1x  Portfolio-level business thinking
+    1x  Experience coaching and developing careers of team members
+    1x  Kubernetes/OpenShift cluster management
+    1x  GitOps with ArgoCD/Flux
+    1x  Infrastructure as Code (Terraform/Pulumi/Crossplane)
+    1x  CI/CD pipeline design
+    1x  Multi-cloud platforms (AWS/GCP/Azure)
+    1x  Supply-chain security
+    1x  German fluency
+    1x  Platform engineering experience
+    1x  Enterprise consulting experience
+    1x  Technical leadership of engineering teams
+    1x  Project management experience and certification
+    1x  Very good German language skills (only has A2)
+    1x  Commercial/business experience
+    1x  Customer-facing project management
+    1x  PM tools and methods knowledge
+    1x  Defence/military domain knowledge
+    1x  Team management and resource coordination experience
+    1x  Digital marketing solutions delivery experience
+    1x  Sales and marketing background
+    1x  Client relationship management experience
+    1x  Sports betting ecosystem knowledge
+    1x  Ad-facing business models understanding
+    1x  Programmatic advertising experience
+    1x  Paid social and search experience
+    1x  Account strategy development
+    1x  Up-sell and cross-sell experience
+    1x  3+ years experience at McKinsey, BCG, Bain, Oliver Wyman, Roland Berger, Monitor Deloitte, EY-Parthenon, Kearney, or Strategy&
+    1x  Client-facing consulting project experience
+    1x  Business strategy and management consulting expertise
+    1x  Financial modeling for business contexts
+    1x  Market analysis and commercial due diligence
+    1x  Client deliverable creation under business constraints
+    1x  CI/CD pipelines expertise
+    1x  Database management (relational and non-relational)
+    1x  Flask web framework
+    1x  OpenAPI/gRPC specifications
+    1x  Large project management from conception to maturity
+    1x  Software engineering focus over research
+    1x  VP-level executive experience
+    1x  CX/BPO industry knowledge
+    1x  Business development and sales collaboration
+    1x  P&L responsibility
+    1x  Digital transformation leadership at scale
+    1x  Commercial opportunity identification
+    1x  Next.js/TypeScript web development
+    1x  Solana blockchain development
+    1x  Smart contracts (Anchor)
+    1x  tRPC
+    1x  Prisma ORM
+    1x  Web3/crypto experience
+    1x  Product/Growth mindset
+    1x  Startup/founding experience
+    1x  Code review experience
+    1x  Pull request evaluation
+    1x  Debugging production systems
+    1x  JavaScript/Java/C++ proficiency
+    1x  Software engineering workflows
+    1x  QA/testing methodologies
+    1x  Educational content development
+    1x  Sales experience or interest
+    1x  CRM systems (Salesforce)
+    1x  Sales methodologies (MEDDPICC, SPIN selling)
+    1x  Lead generation experience
+    1x  Business fluency in German
+    1x  MS Office proficiency for business use
+    1x  B2B SaaS industry knowledge
+    1x  Currently enrolled student status
+    1x  Go programming language (primary requirement)
+    1x  Staff-level software engineering experience
+    1x  High-growth startup product ownership
+    1x  Backend/API infrastructure at scale
+    1x  Stakeholder and product management
+    1x  Travel/hospitality domain experience
+    1x  Currently enrolled university student status
+    1x  Human resources management focus/coursework
+    1x  Business administration knowledge
+    1x  Controlling/accounting experience
+    1x  Advanced Microsoft Office skills (Word, Excel, PowerPoint)
+    1x  HR-specific interest and background
+    1x  Service-oriented customer interaction experience
+    1x  8+ years experience (has 4+ years)
+    1x  Consulting experience
+    1x  Business strategy and transformation
+    1x  Client-facing sales and pre-sales
+    1x  Industry vertical expertise (banking, insurance, manufacturing)
+    1x  Data governance and AI strategy
+    1x  CxO-level stakeholder management
+    1x  Workshop facilitation
+    1x  Proposal development
+    1x  Full-stack development experience
+    1x  Customer-facing engineering
+    1x  Third-party system integrations
+    1x  LLM prompting and tuning
+    1x  Voice stack/transcriber experience
+    1x  Enterprise software experience
+    1x  Project management under tight deadlines
+    1x  8+ years technology leadership in regulated financial services/fintech/crypto
+    1x  Digital asset custody/wallet infrastructure experience
+    1x  Senior executive/C-level leadership experience
+    1x  Financial services technology strategy
+    1x  Pure software development focus (heavy research background)
+    1x  Traditional web application development
+    1x  Cloud platforms experience
+    1x  Deployment automation
+    1x  Open-source contributions
+    1x  SAP Business AI experience
+    1x  SAP Joule knowledge
+    1x  Agentic AI for process automation
+    1x  SAP project experience
+    1x  SAP certification
+    1x  German C1 proficiency
+    1x  Stakeholder communication in enterprise settings
+    1x  Real-World Data (RWD) experience with EHR/claims data
+    1x  Epidemiology expertise
+    1x  Causal inference methodologies
+    1x  Regulatory submissions experience
+    1x  7+ years industry experience
+    1x  Healthcare/medical domain knowledge
+    1x  Cardiovascular/Renal/Metabolic therapeutic area experience
+    1x  Principal/senior leadership experience
+    1x  Trading or financial markets experience
+    1x  Electricity markets or power systems knowledge
+    1x  Linear programming and stochastic optimization
+    1x  Meteorological/weather data experience
+    1x  Production forecasting models for trading
+    1x  Backtesting frameworks
+    1x  Real-time trading constraints
+    1x  Administrative and business communication experience
+    1x  Client interfacing and customer service skills
+    1x  Scheduling and event planning
+    1x  General business operations support
+    1x  Spreadsheet-based data collection and reporting
+    1x  Content writing and creative work experience
+    1x  Physical fitness for 6-7 hours of daily walking
+    1x  Field data collection experience
+    1x  Retail/public space navigation experience
+    1x  Manual data entry and validation tasks
+    1x  Expense reporting and timesheet management
+    1x  Short-form video content creation
+    1x  Instagram Reels and YouTube Shorts experience
+    1x  Social media content strategy
+    1x  Brand storytelling for consumer audiences
+    1x  UK market knowledge
+    1x  Content performance metrics and optimization
+    1x  Graphic design and visual content creation
+    1x  Humor and entertainment content writing
+    1x  Waste management or traditional industry knowledge
+    1x  8+ years DBA experience
+    1x  MySQL/Redis system principles
+    1x  AWS cloud technology stack (VPC/AuroraRDS/Valkey/OpenSearch)
+    1x  TiDB/Doris/ES distributed databases
+    1x  Financial-level storage components management
+    1x  Database SLA management (99.99%)
+    1x  Golang backend development
+    1x  Massive database experience (cluster > 800, TB+ data)
+    1x  Production database operations and maintenance
+    1x  Bioinformatics experience
+    1x  Metabolomics data analysis
+    1x  Biological databases knowledge
+    1x  Nutrition or health domain knowledge
+    1x  Experience with biological/metabolic data interpretation
+    1x  Cabin crew experience
+    1x  Hospitality/service industry experience
+    1x  Aviation safety training
+    1x  Food service experience
+    1x  Customer service in luxury settings
+    1x  Physical demands of cabin crew work
+    1x  Aviation regulations knowledge
+    1x  Emergency procedures training
+    1x  German language proficiency (very good required)
+    1x  Solution architecture for enterprise clients
+    1x  Life sciences domain knowledge
+    1x  Dashboard development experience
+    1x  Data modeling (Star Schema, Snowflake Schema)
+    1x  UI/UX design background
+    1x  Business requirements analysis
+    1x  KPIs and business metrics understanding
+    1x  Grafana experience
+    1x  SAC experience
+    1x  Advanced German proficiency
+    1x  Business intelligence domain experience
+    1x  Bilingual fluency in required language pairs
+    1x  Audio recording experience
+    1x  Quality assurance experience for audio content
+    1x  Customer service dialogue familiarity
+    1x  Linguistic review capabilities
+    1x  2+ years customer-facing experience
+    1x  Customer Success Manager/Account Manager experience
+    1x  SaaS product support experience
+    1x  Customer onboarding experience
+    1x  Retention and engagement strategies
+    1x  Experience with recruiting/HR tools
+    1x  Email support and customer call management
+    1x  Leadership/management experience
+    1x  Business development and client acquisition
+    1x  IT consulting experience
+    1x  Team building and P&L responsibility
+    1x  Strategic business planning
+    1x  E-Learning and digital education experience
+    1x  Moodle or LMS administration
+    1x  German language proficiency (only A2 vs required very good)
+    1x  E-Learning content creation
+    1x  Educational technology background
+    1x  MS Office advanced skills
+    1x  Server and network administration
+    1x  Training and instructional design experience
+    1x  Team leadership experience (managing ~10 people)
+    1x  Agile project management expertise
+    1x  Banking/Financial services experience
+    1x  Pension fund domain knowledge
+    1x  DevOps and cloud architecture experience
+    1x  Change management and transformation leadership
+    1x  Rust programming (critical requirement)
+    1x  5+ years Technical Leadership experience
+    1x  High-frequency trading systems
+    1x  AWS production environments
+    1x  Kubernetes clusters management
+    1x  Finance/cryptocurrency domain knowledge
+    1x  Node.js/TypeScript
+    1x  GitOps workflows
+    1x  Ultra-low-latency systems
+    1x  Team management and mentorship at scale

@@ -435,10 +435,10 @@ def scrape_jobs(config):
         page = context.new_page()
 
         log("Logging into LinkedIn...")
-        page.goto("https://www.linkedin.com/feed")
+        page.goto("https://www.linkedin.com/feed", wait_until="domcontentloaded")
         page.wait_for_timeout(3000)
         if "login" in page.url or "authwall" in page.url:
-            page.goto("https://www.linkedin.com/login")
+            page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
             page.wait_for_selector("#username", timeout=15000)
             page.fill("#username", config["email"])
             page.fill("#password", config["password"])
@@ -452,8 +452,13 @@ def scrape_jobs(config):
             log(f"Scraping: {keyword}")
             for page_num in range(0, config["pages"]):
                 url = f"https://www.linkedin.com/jobs/search/?keywords={keyword.replace(' ', '+')}&location={config['location']}&f_TPR={config['time_filter']}&sortBy=R&start={page_num * 25}"
-                page.goto(url)
-                page.wait_for_timeout(5000)
+                try:
+                    page.goto(url, timeout=45000, wait_until="domcontentloaded")
+                    page.wait_for_timeout(4000)
+                except Exception as e:
+                    log(f"  Timeout on page {page_num+1} for '{keyword}' — stopping this keyword")
+                    break
+
                 for _ in range(3):
                     page.keyboard.press("End")
                     page.wait_for_timeout(1500)
@@ -479,6 +484,8 @@ def scrape_jobs(config):
                             "url": "https://www.linkedin.com" + link.get_attribute("href"),
                             "keyword": keyword, "description": "", "salary": "", "scored": False
                         })
+
+                time.sleep(2)  # rate limit between pages
 
         browser.close()
 
