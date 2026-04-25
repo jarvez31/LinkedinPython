@@ -201,6 +201,7 @@
           <div class="field">
             <label>Pages per keyword</label>
             <select name="pages">
+              <option value="1">🧪 Test (1 job)</option>
               <option value="3">3 pages (~75 jobs)</option>
               <option value="5" selected>5 pages (~125 jobs)</option>
               <option value="10">10 pages (~250 jobs)</option>
@@ -296,7 +297,9 @@
       <button class="tab-btn active" onclick="showTab('annual')" id="tab-annual">💰 Annual <span id="count-annual" class="tab-count">0</span></button>
       <button class="tab-btn" onclick="showTab('hourly')" id="tab-hourly">⏱ Hourly <span id="count-hourly" class="tab-count">0</span></button>
       <button class="tab-btn" onclick="showTab('missing')" id="tab-missing">❓ Not Listed <span id="count-missing" class="tab-count">0</span></button>
+      <button class="tab-btn" onclick="showTab('interested')" id="tab-interested" style="border-color:rgba(124,106,255,0.3);color:var(--accent);">⭐ Interested <span id="count-interested" class="tab-count" style="background:rgba(124,106,255,0.15);">0</span></button>
       <button class="tab-btn" onclick="showTab('applied')" id="tab-applied" style="border-color:rgba(106,255,180,0.3);color:var(--accent3);">✅ Applied <span id="count-applied" class="tab-count" style="background:rgba(106,255,180,0.15);">0</span></button>
+      <button class="tab-btn" id="applied-filter-toggle" style="display:none;border-color:rgba(255,200,100,0.3);color:#ffc864;cursor:pointer;" onclick="toggleActionNeededFilter()">⚡ Action Needed <span id="count-action-needed" class="tab-count" style="background:rgba(255,200,100,0.15);">0</span></button>
       <button class="tab-btn" onclick="showTab('not-interested')" id="tab-not-interested" style="border-color:rgba(255,106,138,0.3);color:var(--accent2);">🚫 Not Interested <span id="count-not-interested" class="tab-count" style="background:rgba(255,106,138,0.15);">0</span></button>
       <button class="tab-btn" onclick="showTab('rejected')" id="tab-rejected" style="border-color:rgba(255,200,100,0.3);color:#ffc864;">✗ Rejected <span id="count-rejected" class="tab-count" style="background:rgba(255,200,100,0.15);">0</span></button>
       <button onclick="downloadAppliedCsv()" style="margin-left:auto;font-size:11px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent3)';this.style.color='var(--accent3)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↓ Export Applied CSV</button>
@@ -305,6 +308,7 @@
     <div id="jobs-annual" class="job-list"></div>
     <div id="jobs-hourly" class="job-list" style="display:none"></div>
     <div id="jobs-missing" class="job-list" style="display:none"></div>
+    <div id="jobs-interested" class="job-list" style="display:none"></div>
     <div id="jobs-applied" class="job-list" style="display:none"></div>
     <div id="jobs-not-interested" class="job-list" style="display:none"></div>
     <div id="jobs-rejected" class="job-list" style="display:none"></div>
@@ -331,13 +335,18 @@
   let appliedJobs       = new Set();
   let notInterestedJobs = new Set();
   let rejectedJobs      = new Set();
+  let interestedJobs    = new Set();
+  let actionNeededJobs  = new Set();
+  let expiredJobs       = new Set();
   let allJobsCache      = { annual: [], hourly: [], missing: [] };
+  let showActionNeededOnly = false;
 
   // ── Salary Tab Rendering ──────────────────────────────────────────────────
   function renderSalaryTab(tab, jobs) {
     const filtered = jobs.filter(j => {
       const id = j.url || j.title;
-      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id);
+      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id) 
+          && !interestedJobs.has(id) && !expiredJobs.has(id);
     });
     const msgs = { annual: 'No annual salary jobs.', hourly: 'No hourly rate jobs.', missing: 'No salary not listed jobs.' };
     document.getElementById('count-' + tab).textContent = filtered.length;
@@ -364,6 +373,7 @@
     const regKey = registerJob(job);
     const jobId  = job.url || job.title;
     const isApplied = appliedJobs.has(jobId);
+    const isInterested = interestedJobs.has(jobId);
 
     return `
       <div class="job-card" id="card-${encodeURIComponent(jobId)}">
@@ -373,10 +383,14 @@
           <div class="job-meta">${fit}${prob}${salary}</div>
           ${verdict}${matchedHtml}${missingHtml}
           <div class="action-btns">
+            <button class="apply-btn ${isInterested ? 'applied' : ''}" ${isInterested ? 'disabled' : ''}
+              onclick="markInterested(jobRegistry['${regKey}'])">⭐ ${isInterested ? 'Interested' : 'Mark Interested'}</button>
             <button class="apply-btn ${isApplied ? 'applied' : ''}" ${isApplied ? 'disabled' : ''}
               onclick="markApplied(jobRegistry['${regKey}'])">✅ ${isApplied ? 'Applied' : 'Mark Applied'}</button>
             <button class="apply-btn danger"
               onclick="markNotInterested(jobRegistry['${regKey}'])">🚫 Not Interested</button>
+            <button class="apply-btn neutral"
+              onclick="markExpired(jobRegistry['${regKey}'])">⏱ Expired</button>
           </div>
         </div>
         <a class="job-link" href="${job.url}" target="_blank">View →</a>
@@ -395,14 +409,27 @@
 
     let timestamp = '', actions = '';
 
-    if (status === 'applied') {
-      timestamp = job.applied_at ? `<div class="job-verdict">Applied: ${job.applied_at}</div>` : '';
+    if (status === 'interested') {
+      timestamp = job.interested_at ? `<div class="job-verdict">Interested: ${job.interested_at}</div>` : '';
       actions = `
+        <button class="apply-btn ${appliedJobs.has(jobId) ? 'applied' : ''}" ${appliedJobs.has(jobId) ? 'disabled' : ''} data-jobid="${encodedId}" onclick="markApplied(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">✅ Mark Applied</button>
+        <button class="apply-btn danger" data-jobid="${encodedId}" onclick="markNotInterested(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">🚫 Not Interested</button>
+        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="markExpired(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">⏱ Expired</button>`;
+    } else if (status === 'applied') {
+      timestamp = job.applied_at ? `<div class="job-verdict">Applied: ${job.applied_at}</div>` : '';
+      const isActionNeeded = actionNeededJobs.has(jobId);
+      actions = `
+        <button class="apply-btn ${isActionNeeded ? 'applied' : ''}" ${isActionNeeded ? 'disabled' : ''} data-jobid="${encodedId}" onclick="markActionNeeded(decodeURIComponent(this.dataset.jobid))">⚡ ${isActionNeeded ? 'Action Needed' : 'Mark Action Needed'}</button>
         <button class="apply-btn danger" data-jobid="${encodedId}" onclick="rejectApplied(decodeURIComponent(this.dataset.jobid))">✗ Mark Rejected</button>
         <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="unmarkApplied(decodeURIComponent(this.dataset.jobid))">↩ Undo</button>`;
+    } else if (status === 'action-needed') {
+      timestamp = job.action_needed_at ? `<div class="job-verdict">Action Needed: ${job.action_needed_at}</div>` : '';
+      actions = `
+        <button class="apply-btn danger" data-jobid="${encodedId}" onclick="rejectApplied(decodeURIComponent(this.dataset.jobid))">✗ Mark Rejected</button>
+        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="markExpired(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">⏱ Expired</button>`;
     } else if (status === 'not-interested') {
       timestamp = job.hidden_at ? `<div class="job-verdict">Hidden: ${job.hidden_at}</div>` : '';
-      actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreNotInterested(decodeURIComponent(this.dataset.jobid))">↩ Restore</button>`;
+      actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreNotInterested(decodeURIComponent(this.dataset.jobid))">↩ Undo</button>`;
     } else if (status === 'rejected') {
       timestamp = job.rejected_at ? `<div class="job-verdict">Rejected: ${job.rejected_at}</div>` : '';
       actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreRejected(decodeURIComponent(this.dataset.jobid))">↩ Move back to Applied</button>`;
@@ -424,24 +451,32 @@
   // ── Load All Status From Server ────────────────────────────────────────────
   async function loadAllStatus() {
     try {
-      const [appRes, niRes, rejRes] = await Promise.all([
-        fetch('/applied'), fetch('/not_interested'), fetch('/rejected')
+      const [appRes, niRes, rejRes, intRes, actRes] = await Promise.all([
+        fetch('/applied'), fetch('/not_interested'), fetch('/rejected'), fetch('/interested'), fetch('/action_needed')
       ]);
       const appData = await appRes.json();
       const niData  = await niRes.json();
       const rejData = await rejRes.json();
+      const intData = await intRes.json();
+      const actData = await actRes.json();
 
       appliedJobs       = new Set(Object.keys(appData));
       notInterestedJobs = new Set(Object.keys(niData));
       rejectedJobs      = new Set(Object.keys(rejData));
+      interestedJobs    = new Set(Object.keys(intData));
+      actionNeededJobs  = new Set(Object.keys(actData));
 
       document.getElementById('count-applied').textContent = Object.keys(appData).length;
       document.getElementById('count-not-interested').textContent = Object.keys(niData).length;
       document.getElementById('count-rejected').textContent = Object.keys(rejData).length;
+      document.getElementById('count-interested').textContent = Object.keys(intData).length;
+      document.getElementById('count-action-needed').textContent = Object.keys(actData).length;
 
-      document.getElementById('jobs-applied').innerHTML = Object.keys(appData).length
-        ? Object.values(appData).map(j => renderStatusCard(j, 'applied')).join('')
-        : '<p style="color:var(--muted);font-size:12px;padding:16px">No applied jobs yet.</p>';
+      document.getElementById('jobs-interested').innerHTML = Object.keys(intData).length
+        ? Object.values(intData).map(j => renderStatusCard(j, 'interested')).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">No interested jobs yet.</p>';
+
+      renderAppliedTab();
 
       document.getElementById('jobs-not-interested').innerHTML = Object.keys(niData).length
         ? Object.values(niData).map(j => renderStatusCard(j, 'not-interested')).join('')
@@ -453,6 +488,19 @@
 
       reRenderSalaryTabs();
     } catch(e) { console.error('Could not load status', e); }
+  }
+
+  function renderAppliedTab() {
+    const allAppliedRes = fetch('/applied').then(r => r.json());
+    allAppliedRes.then(appData => {
+      let jobs = Object.values(appData);
+      if (showActionNeededOnly) {
+        jobs = jobs.filter(j => actionNeededJobs.has(j.url || j.title));
+      }
+      document.getElementById('jobs-applied').innerHTML = jobs.length
+        ? jobs.map(j => renderStatusCard(j, actionNeededJobs.has(j.url || j.title) ? 'action-needed' : 'applied')).join('')
+        : '<p style="color:var(--muted);font-size:12px;padding:16px">' + (showActionNeededOnly ? 'No jobs needing action.' : 'No applied jobs yet.') + '</p>';
+    });
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -487,6 +535,23 @@
     await loadAllStatus();
   }
 
+  async function markInterested(job) {
+    const jobId = job.url || job.title;
+    await fetch('/interested/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+    await loadAllStatus();
+  }
+
+  async function markExpired(job) {
+    const jobId = job.url || job.title;
+    await fetch('/expired/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+    await loadAllStatus();
+  }
+
+  async function markActionNeeded(jobId) {
+    await fetch('/action_needed/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId}) });
+    await loadAllStatus();
+  }
+
   // ── Download Applied CSV ──────────────────────────────────────────────────
   async function downloadAppliedCsv() {
     const res = await fetch('/applied');
@@ -506,10 +571,23 @@
   // ── Tabs ──────────────────────────────────────────────────────────────────
   function showTab(tab) {
     activeTab = tab;
-    ['annual','hourly','missing','applied','not-interested','rejected'].forEach(t => {
-      document.getElementById('jobs-' + t).style.display = t === tab ? 'block' : 'none';
-      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    ['annual','hourly','missing','interested','applied','not-interested','rejected'].forEach(t => {
+      const container = document.getElementById('jobs-' + t);
+      if (container) container.style.display = t === tab ? 'block' : 'none';
+      const btn = document.getElementById('tab-' + t);
+      if (btn) btn.classList.toggle('active', t === tab);
     });
+    if (tab === 'applied') {
+      document.getElementById('applied-filter-toggle').style.display = 'inline-flex';
+      showActionNeededOnly = false;
+    } else {
+      document.getElementById('applied-filter-toggle').style.display = 'none';
+    }
+  }
+
+  function toggleActionNeededFilter() {
+    showActionNeededOnly = !showActionNeededOnly;
+    renderAppliedTab();
   }
 
   // ── Load CSV ──────────────────────────────────────────────────────────────

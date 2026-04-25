@@ -25,6 +25,9 @@ SCORED_FILE         = DATA_DIR / "linkedin_jobs_scored.json"
 APPLIED_FILE        = DATA_DIR / "applied.json"
 NOT_INTERESTED_FILE = DATA_DIR / "not_interested.json"
 REJECTED_FILE       = DATA_DIR / "rejected.json"
+INTERESTED_FILE     = DATA_DIR / "interested.json"
+ACTION_NEEDED_FILE  = DATA_DIR / "action_needed.json"
+EXPIRED_FILE        = DATA_DIR / "expired.json"
 
 # ─── State ────────────────────────────────────────────────────────────────────
 state = {
@@ -59,7 +62,7 @@ def get_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 def remove_from_all(job_id):
-    for path in [APPLIED_FILE, NOT_INTERESTED_FILE, REJECTED_FILE]:
+    for path in [APPLIED_FILE, NOT_INTERESTED_FILE, REJECTED_FILE, INTERESTED_FILE, ACTION_NEEDED_FILE, EXPIRED_FILE]:
         data = load_file(path)
         if job_id in data:
             data.pop(job_id)
@@ -263,6 +266,62 @@ def restore_rejected():
         save_file(APPLIED_FILE, applied)
     return jsonify({"ok": True})
 
+# ─── Interested State ─────────────────────────────────────────────────────────────
+@app.route("/interested", methods=["GET"])
+def get_interested():
+    return jsonify(load_file(INTERESTED_FILE))
+
+@app.route("/interested/mark", methods=["POST"])
+def mark_interested():
+    data = request.get_json()
+    job = data.get("job")
+    if not job:
+        return jsonify({"error": "No job provided"}), 400
+    job_id = job.get("url") or job.get("title")
+    remove_from_all(job_id)
+    job["interested_at"] = get_timestamp()
+    interested = load_file(INTERESTED_FILE)
+    interested[job_id] = job
+    save_file(INTERESTED_FILE, interested)
+    return jsonify({"ok": True})
+
+# ─── Action Needed State (sub-state of Applied) ────────────────────────────────────
+@app.route("/action_needed", methods=["GET"])
+def get_action_needed():
+    """Return jobs from applied.json that have action_needed_at timestamp"""
+    applied = load_file(APPLIED_FILE)
+    action_needed = {k: v for k, v in applied.items() if v.get("action_needed_at")}
+    return jsonify(action_needed)
+
+@app.route("/action_needed/mark", methods=["POST"])
+def mark_action_needed():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    applied = load_file(APPLIED_FILE)
+    if job_id in applied:
+        applied[job_id]["action_needed_at"] = get_timestamp()
+        save_file(APPLIED_FILE, applied)
+    return jsonify({"ok": True})
+
+# ─── Expired State (hidden) ───────────────────────────────────────────────────────
+@app.route("/expired", methods=["GET"])
+def get_expired():
+    return jsonify(load_file(EXPIRED_FILE))
+
+@app.route("/expired/mark", methods=["POST"])
+def mark_expired():
+    data = request.get_json()
+    job = data.get("job")
+    if not job:
+        return jsonify({"error": "No job provided"}), 400
+    job_id = job.get("url") or job.get("title")
+    remove_from_all(job_id)
+    job["expired_at"] = get_timestamp()
+    expired = load_file(EXPIRED_FILE)
+    expired[job_id] = job
+    save_file(EXPIRED_FILE, expired)
+    return jsonify({"ok": True})
+
 @app.route("/salary_stats")
 def salary_stats():
     jobs = state["scored_jobs"] or state["jobs"]
@@ -435,18 +494,17 @@ def scrape_jobs(config):
         page = context.new_page()
 
         log("Logging into LinkedIn...")
-        page.goto("https://www.linkedin.com/feed", wait_until="domcontentloaded")
-        page.wait_for_timeout(3000)
-        if "login" in page.url or "authwall" in page.url:
-            page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
-            page.wait_for_selector("#username", timeout=15000)
+        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+        page.wait_for_timeout(2000)
+        username_el = page.query_selector("#username")
+        if username_el:
             page.fill("#username", config["email"])
             page.fill("#password", config["password"])
             page.click("button[type=submit]")
             page.wait_for_timeout(6000)
-            log("Logged in successfully")
+            log(f"Logged in — now on: {page.url}")
         else:
-            log("Already logged in")
+            log(f"Skipped login — already on: {page.url}")
 
         for keyword in config["keywords"]:
             log(f"Scraping: {keyword}")
@@ -463,26 +521,44 @@ def scrape_jobs(config):
                     page.keyboard.press("End")
                     page.wait_for_timeout(1500)
 
-                jobs = page.query_selector_all(".scaffold-layout__list-item")
+                jobs = (page.query_selector_all(".scaffold-layout__list-item") or
+                        page.query_selector_all(".jobs-search__results-list li"))
                 log(f"  Page {page_num+1}: {len(jobs)} jobs")
                 if len(jobs) == 0:
                     break
 
                 for job in jobs:
-                    title = job.query_selector(".job-card-list__title--link span[aria-hidden='true']")
-                    company = job.query_selector(".artdeco-entity-lockup__subtitle span")
-                    location_el = job.query_selector(".artdeco-entity-lockup__caption li span")
-                    link = job.query_selector("a.job-card-list__title--link")
-                    job_id_el = job.query_selector("[data-job-id]")
+                    title = (job.query_selector(".job-card-list__title--link span[aria-hidden='true']") or
+                             job.query_selector(".base-search-card__title"))
+                    company = (job.query_selector(".artdeco-entity-lockup__subtitle span") or
+                               job.query_selector(".base-search-card__subtitle"))
+                    location_el = (job.query_selector(".artdeco-entity-lockup__caption li span") or
+                                   job.query_selector(".job-search-card__location"))
+                    link = (job.query_selector("a.job-card-list__title--link") or
+                            job.query_selector("a.base-card__full-link"))
+                    job_id_el = (job.query_selector("[data-job-id]") or
+                                 job.query_selector("[data-entity-urn]"))
+
+                    job_id = ""
+                    if job_id_el:
+                        job_id = job_id_el.get_attribute("data-job-id") or ""
+                        if not job_id:
+                            urn = job_id_el.get_attribute("data-entity-urn") or ""
+                            job_id = urn.split(":")[-1] if urn else ""
 
                     if title and link:
+                        href = link.get_attribute("href") or ""
+                        url = href if href.startswith("http") else "https://www.linkedin.com" + href
                         all_jobs.append({
-                            "id": job_id_el.get_attribute("data-job-id") if job_id_el else "",
+                            "id": job_id,
                             "title": title.inner_text().strip(),
                             "company": company.inner_text().strip() if company else "",
                             "location": location_el.inner_text().strip() if location_el else "",
-                            "url": "https://www.linkedin.com" + link.get_attribute("href"),
-                            "keyword": keyword, "description": "", "salary": "", "scored": False
+                            "url": url,
+                            "keyword": keyword,
+                            "description": "",
+                            "salary": "",
+                            "scored": False
                         })
 
                 time.sleep(2)  # rate limit between pages
@@ -511,32 +587,96 @@ def fetch_descriptions(config):
         )
         page = context.new_page()
 
-        page.goto("https://www.linkedin.com/feed")
-        page.wait_for_timeout(3000)
-        if "login" in page.url or "authwall" in page.url:
-            page.goto("https://www.linkedin.com/login")
-            page.wait_for_selector("#username", timeout=15000)
+        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+        page.wait_for_timeout(2000)
+        username_el = page.query_selector("#username")
+        if username_el:
             page.fill("#username", config["email"])
             page.fill("#password", config["password"])
             page.click("button[type=submit]")
             page.wait_for_timeout(6000)
+            log(f"Logged in for descriptions — on: {page.url}")
+        else:
+            # Username field not found immediately, wait and try again
+            page.wait_for_selector("#username", timeout=15000)
+            log("✓ Username field loaded after wait")
+            page.fill("#username", config["email"])
+            page.fill("#password", config["password"])
+            page.click("button[type=submit]")
+            page.wait_for_timeout(6000)
+            log(f"Logged in for descriptions — on: {page.url}")
 
+        import re as _re
         for i, job in enumerate(jobs):
             try:
-                page.goto(job["url"])
-                page.wait_for_timeout(5000)
+                # Extract numeric job ID and build clean URL
+                raw_url = job["url"]
+                match = _re.search(r'(\d{9,})', raw_url)
+                job_url = f"https://www.linkedin.com/jobs/view/{match.group(1)}" if match else raw_url
 
+                page.goto(job_url, timeout=45000, wait_until="domcontentloaded")
+                page.wait_for_timeout(3000)
+
+                # Accept cookie consent if shown
+                for cookie_text in ["Accept", "Accept cookies"]:
+                    try:
+                        btn = page.query_selector(f"button:has-text('{cookie_text}')")
+                        if btn:
+                            btn.click(force=True)
+                            page.wait_for_timeout(1500)
+                            break
+                    except:
+                        pass
+
+                # Expand description
                 for btn_text in ["Show more", "See more"]:
-                    btn = page.query_selector(f"button:has-text('{btn_text}')")
-                    if btn:
-                        btn.click()
-                        page.wait_for_timeout(1000)
+                    try:
+                        btn = page.query_selector(f"button:has-text('{btn_text}')")
+                        if btn:
+                            btn.click(force=True)
+                            page.wait_for_timeout(1000)
+                            break
+                    except:
                         break
 
                 body_text = page.inner_text("body")
-
+                
+                # Extract description by text splitting — LinkedIn doesn't use fixed CSS classes
+                desc = ""
+                
                 if "About the job" in body_text:
-                    job["description"] = body_text.split("About the job")[-1].strip()[:12000]
+                    # Split on "About the job" and grab everything after it
+                    parts = body_text.split("About the job")
+                    if len(parts) > 1:
+                        # Get the content after "About the job"
+                        after_header = parts[-1].strip()
+                        
+                        # Stop at next major section (common LinkedIn footers/CTAs)
+                        stop_phrases = [
+                            "Show more",
+                            "Show less",
+                            "Easy Apply",
+                            "Sign in to view",
+                            "More jobs from",
+                            "People who viewed",
+                            "Follow the company",
+                            "Recommended for you"
+                        ]
+                        
+                        for phrase in stop_phrases:
+                            if phrase in after_header:
+                                after_header = after_header.split(phrase)[0].strip()
+                                break
+                        
+                        if len(after_header) > 100:  # Sanity check: description should be substantial
+                            desc = after_header[:12000]
+                
+                if desc:
+                    job["description"] = desc
+                    
+                if i % 10 == 0:
+                    status = "✓" if job.get("description") else "⚠"
+                    log(f"  {status} {job['title'][:50]}: {len(job.get('description', ''))} chars")
 
                 salary_patterns = [
                     r'[\$€£]\s*[\d,\.]+\s*[kK]?\s*[-–]\s*[\$€£]?\s*[\d,\.]+\s*[kK]?',
