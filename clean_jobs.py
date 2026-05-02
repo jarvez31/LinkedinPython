@@ -31,15 +31,12 @@ def clean_file(filepath):
     
     removed_count = original_count - len(cleaned)
     
-    if removed_count > 0:
-        with open(filepath, "w") as f:
-            json.dump(cleaned, f, indent=2)
-        print(f"✓ {filepath.name}")
-        print(f"  Before: {original_count} jobs")
-        print(f"  After:  {len(cleaned)} jobs")
-        print(f"  Removed: {removed_count} jobs with null/empty description")
-    else:
-        print(f"✓ {filepath.name} — all jobs have descriptions")
+    with open(filepath, "w") as f:
+        json.dump(cleaned, f, indent=2)
+    print(f"✓ {filepath.name}")
+    print(f"  Before: {original_count} jobs")
+    print(f"  After:  {len(cleaned)} jobs")
+    print(f"  Removed: {removed_count} jobs with null/empty description")
     
     return removed_count
 

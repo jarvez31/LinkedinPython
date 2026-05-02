@@ -107,6 +107,22 @@
   .job-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 10px; background: var(--card); display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; transition: border-color 0.15s; }
   .job-card:hover { border-color: rgba(124,106,255,0.3); }
   .job-card.applied-card { opacity: 0.7; border-color: rgba(106,255,180,0.2); }
+
+  /* Application Type Modal */
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+  .modal.active { display: flex; }
+  .modal-content { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; max-width: 400px; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+  .modal-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-btn { padding: 12px; border-radius: 6px; border: none; font-family: 'Syne', sans-serif; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .modal-btn.easy { background: rgba(106,255,180,0.15); color: var(--accent3); border: 1px solid rgba(106,255,180,0.3); }
+  .modal-btn.easy:hover { background: rgba(106,255,180,0.25); }
+  .modal-btn.cover { background: rgba(124,106,255,0.15); color: var(--accent); border: 1px solid rgba(124,106,255,0.3); }
+  .modal-btn.cover:hover { background: rgba(124,106,255,0.25); }
+
+  .app-type-badge { font-size: 9px; padding: 3px 8px; border-radius: 3px; font-weight: 600; margin-left: 8px; }
+  .app-type-badge.easy { background: rgba(106,255,180,0.1); color: var(--accent3); }
+  .app-type-badge.cover { background: rgba(124,106,255,0.1); color: var(--accent); }
   .job-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
   .job-company { font-size: 11px; color: var(--muted); }
   .job-meta { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
@@ -406,19 +422,23 @@
     const missing = (job.missing_skills || []).slice(0, 5);
     const missingHtml = missing.length ? `<div class="skills-section"><div class="skills-label">✗ Missing</div><div class="skills-wrap">${missing.map(s=>`<span class="skill-tag missing">${s}</span>`).join('')}</div></div>` : '';
     const encodedId = encodeURIComponent(jobId);
+    const regKey = registerJob(job);
 
     let timestamp = '', actions = '';
 
     if (status === 'interested') {
       timestamp = job.interested_at ? `<div class="job-verdict">Interested: ${job.interested_at}</div>` : '';
       actions = `
-        <button class="apply-btn ${appliedJobs.has(jobId) ? 'applied' : ''}" ${appliedJobs.has(jobId) ? 'disabled' : ''} data-jobid="${encodedId}" onclick="markApplied(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">✅ Mark Applied</button>
-        <button class="apply-btn danger" data-jobid="${encodedId}" onclick="markNotInterested(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">🚫 Not Interested</button>
-        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="markExpired(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">⏱ Expired</button>`;
+        <button class="apply-btn ${appliedJobs.has(jobId) ? 'applied' : ''}" ${appliedJobs.has(jobId) ? 'disabled' : ''} onclick="markApplied(jobRegistry['${regKey}'])">✅ Mark Applied</button>
+        <button class="apply-btn danger" onclick="markNotInterested(jobRegistry['${regKey}'])">🚫 Not Interested</button>
+        <button class="apply-btn neutral" onclick="markExpired(jobRegistry['${regKey}'])">⏱ Expired</button>`;
     } else if (status === 'applied') {
-      timestamp = job.applied_at ? `<div class="job-verdict">Applied: ${job.applied_at}</div>` : '';
+      timestamp = job.applied_at ? `<div class="job-verdict">Applied: ${job.applied_at}${job.application_type ? ` <span class="app-type-badge ${job.application_type === 'easy_apply' ? 'easy' : 'cover'}">${job.application_type === 'easy_apply' ? '📱 Easy Apply' : '📝 Cover Letter'}</span>` : ''}</div>` : '';
       const isActionNeeded = actionNeededJobs.has(jobId);
+      const switchType = job.application_type === 'easy_apply' ? 'cover_letter' : 'easy_apply';
+      const switchLabel = job.application_type === 'easy_apply' ? '📝 Switch to Cover Letter' : '📱 Switch to Easy Apply';
       actions = `
+        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="switchApplicationType(decodeURIComponent(this.dataset.jobid), '${switchType}')">${switchLabel}</button>
         <button class="apply-btn ${isActionNeeded ? 'applied' : ''}" ${isActionNeeded ? 'disabled' : ''} data-jobid="${encodedId}" onclick="markActionNeeded(decodeURIComponent(this.dataset.jobid))">⚡ ${isActionNeeded ? 'Action Needed' : 'Mark Action Needed'}</button>
         <button class="apply-btn danger" data-jobid="${encodedId}" onclick="rejectApplied(decodeURIComponent(this.dataset.jobid))">✗ Mark Rejected</button>
         <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="unmarkApplied(decodeURIComponent(this.dataset.jobid))">↩ Undo</button>`;
@@ -426,7 +446,7 @@
       timestamp = job.action_needed_at ? `<div class="job-verdict">Action Needed: ${job.action_needed_at}</div>` : '';
       actions = `
         <button class="apply-btn danger" data-jobid="${encodedId}" onclick="rejectApplied(decodeURIComponent(this.dataset.jobid))">✗ Mark Rejected</button>
-        <button class="apply-btn neutral" data-jobid="${encodedId}" onclick="markExpired(jobRegistry[Object.keys(jobRegistry).find(k=>jobRegistry[k].url===decodeURIComponent('${encodedId}'))])">⏱ Expired</button>`;
+        <button class="apply-btn neutral" onclick="markExpired(jobRegistry['${regKey}'])">⏱ Expired</button>`;
     } else if (status === 'not-interested') {
       timestamp = job.hidden_at ? `<div class="job-verdict">Hidden: ${job.hidden_at}</div>` : '';
       actions = `<button class="apply-btn neutral" data-jobid="${encodedId}" onclick="restoreNotInterested(decodeURIComponent(this.dataset.jobid))">↩ Undo</button>`;
@@ -451,20 +471,22 @@
   // ── Load All Status From Server ────────────────────────────────────────────
   async function loadAllStatus() {
     try {
-      const [appRes, niRes, rejRes, intRes, actRes] = await Promise.all([
-        fetch('/applied'), fetch('/not_interested'), fetch('/rejected'), fetch('/interested'), fetch('/action_needed')
+      const [appRes, niRes, rejRes, intRes, actRes, expRes] = await Promise.all([
+        fetch('/applied'), fetch('/not_interested'), fetch('/rejected'), fetch('/interested'), fetch('/action_needed'), fetch('/expired')
       ]);
       const appData = await appRes.json();
       const niData  = await niRes.json();
       const rejData = await rejRes.json();
       const intData = await intRes.json();
       const actData = await actRes.json();
+      const expData = await expRes.json();
 
       appliedJobs       = new Set(Object.keys(appData));
       notInterestedJobs = new Set(Object.keys(niData));
       rejectedJobs      = new Set(Object.keys(rejData));
       interestedJobs    = new Set(Object.keys(intData));
       actionNeededJobs  = new Set(Object.keys(actData));
+      expiredJobs       = new Set(Object.keys(expData));
 
       document.getElementById('count-applied').textContent = Object.keys(appData).length;
       document.getElementById('count-not-interested').textContent = Object.keys(niData).length;
@@ -504,9 +526,25 @@
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  async function markApplied(job) {
-    const jobId = job.url || job.title;
-    await fetch('/applied/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+  let pendingApplyJob = null;
+
+  function markApplied(job) {
+    pendingApplyJob = job;
+    document.getElementById('appTypeModal').classList.add('active');
+  }
+
+  async function confirmApplied(applicationType) {
+    document.getElementById('appTypeModal').classList.remove('active');
+    if (!pendingApplyJob) return;
+    const jobId = pendingApplyJob.url || pendingApplyJob.title;
+    pendingApplyJob.application_type = applicationType;
+    await fetch('/applied/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job: pendingApplyJob}) });
+    pendingApplyJob = null;
+    await loadAllStatus();
+  }
+
+  async function switchApplicationType(jobId, newType) {
+    await fetch('/applied/switch_type', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job_id:jobId, application_type:newType}) });
     await loadAllStatus();
   }
 
@@ -542,9 +580,25 @@
   }
 
   async function markExpired(job) {
+    if (!job) {
+      console.error('markExpired: no job provided');
+      return;
+    }
     const jobId = job.url || job.title;
-    await fetch('/expired/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
-    await loadAllStatus();
+    if (!jobId) {
+      console.error('markExpired: job has no url or title', job);
+      return;
+    }
+    try {
+      const res = await fetch('/expired/mark', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({job}) });
+      if (!res.ok) {
+        console.error('markExpired: fetch failed', res.status, res.statusText);
+        return;
+      }
+      await loadAllStatus();
+    } catch(e) {
+      console.error('markExpired: error', e);
+    }
   }
 
   async function markActionNeeded(jobId) {
@@ -754,6 +808,16 @@
   // ── Init ──────────────────────────────────────────────────────────────────
   setMode('scraper_only');
   loadAllStatus();
-</script>
+</script>  <!-- Application Type Modal -->
+  <div class="modal" id="appTypeModal">
+    <div class="modal-content">
+      <div class="modal-title">How did you apply?</div>
+      <div class="modal-buttons">
+        <button class="modal-btn easy" onclick="confirmApplied('easy_apply')">📱 Easy Apply</button>
+        <button class="modal-btn cover" onclick="confirmApplied('cover_letter')">📝 Cover Letter</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

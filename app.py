@@ -220,6 +220,17 @@ def reject_applied():
         save_file(REJECTED_FILE, rejected)
     return jsonify({"ok": True})
 
+@app.route("/applied/switch_type", methods=["POST"])
+def switch_application_type():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    new_type = data.get("application_type")
+    applied = load_file(APPLIED_FILE)
+    if job_id in applied:
+        applied[job_id]["application_type"] = new_type
+        save_file(APPLIED_FILE, applied)
+    return jsonify({"ok": True})
+
 @app.route("/not_interested", methods=["GET"])
 def get_not_interested():
     return jsonify(load_file(NOT_INTERESTED_FILE))
