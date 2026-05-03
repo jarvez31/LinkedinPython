@@ -1,8 +1,10 @@
 .env
+config.json
 data/
 outputs/
 old_files/
 __pycache__/
+debug_*.png
 *.pyc
 *.pyc
 attachments/
