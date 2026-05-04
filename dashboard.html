@@ -805,9 +805,24 @@
     document.getElementById('reset-btn').style.display = 'block';
   }
 
+  // ── Prefill from config.json ───────────────────────────────────────────────
+  async function loadConfig() {
+    try {
+      const res = await fetch('/config');
+      const cfg = await res.json();
+      if (cfg.email)         document.querySelector('input[name=email]').value = cfg.email;
+      if (cfg.password)      document.querySelector('input[name=password]').value = cfg.password;
+      if (cfg.anthropic_key) document.querySelector('input[name=anthropic_key]').value = cfg.anthropic_key;
+      if (cfg.keywords)      document.querySelector('input[name=keywords]').value = cfg.keywords;
+      if (cfg.location)      document.querySelector('input[name=location]').value = cfg.location;
+      if (cfg.profession)    document.querySelector('input[name=profession]').value = cfg.profession;
+    } catch(e) {}
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   setMode('scraper_only');
   loadAllStatus();
+  loadConfig();
 </script>  <!-- Application Type Modal -->
   <div class="modal" id="appTypeModal">
     <div class="modal-content">

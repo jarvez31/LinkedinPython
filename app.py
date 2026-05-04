@@ -5,7 +5,7 @@ Open: http://localhost:5000
 """
 
 from flask import Flask, request, jsonify, send_file
-import os, json, csv, re, time, threading
+import os, json, csv, re, time, threading, random
 from pathlib import Path
 from collections import Counter
 import tempfile
@@ -46,7 +46,7 @@ def log(msg):
     print(msg)
     state["log"].append(msg)
 
-# ─── Status File Helpers ──────────────────────────────────────────────────────
+# ─── File Helpers ─────────────────────────────────────────────────────────────
 def load_file(path):
     if path.exists():
         with open(path) as f:
@@ -62,7 +62,8 @@ def get_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 def remove_from_all(job_id):
-    for path in [APPLIED_FILE, NOT_INTERESTED_FILE, REJECTED_FILE, INTERESTED_FILE, ACTION_NEEDED_FILE, EXPIRED_FILE]:
+    for path in [APPLIED_FILE, NOT_INTERESTED_FILE, REJECTED_FILE,
+                 INTERESTED_FILE, ACTION_NEEDED_FILE, EXPIRED_FILE]:
         data = load_file(path)
         if job_id in data:
             data.pop(job_id)
@@ -71,8 +72,16 @@ def remove_from_all(job_id):
 # ─── Routes ───────────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
-    with open(BASE_DIR / "dashboard.html") as f:
+    with open(BASE_DIR / "dashboard.html", encoding="utf-8") as f:
         return f.read()
+
+@app.route("/config")
+def get_config():
+    config_path = BASE_DIR / "config.json"
+    if config_path.exists():
+        with open(config_path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    return jsonify({})
 
 @app.route("/status")
 def status():
@@ -277,7 +286,6 @@ def restore_rejected():
         save_file(APPLIED_FILE, applied)
     return jsonify({"ok": True})
 
-# ─── Interested State ─────────────────────────────────────────────────────────────
 @app.route("/interested", methods=["GET"])
 def get_interested():
     return jsonify(load_file(INTERESTED_FILE))
@@ -296,10 +304,8 @@ def mark_interested():
     save_file(INTERESTED_FILE, interested)
     return jsonify({"ok": True})
 
-# ─── Action Needed State (sub-state of Applied) ────────────────────────────────────
 @app.route("/action_needed", methods=["GET"])
 def get_action_needed():
-    """Return jobs from applied.json that have action_needed_at timestamp"""
     applied = load_file(APPLIED_FILE)
     action_needed = {k: v for k, v in applied.items() if v.get("action_needed_at")}
     return jsonify(action_needed)
@@ -314,7 +320,6 @@ def mark_action_needed():
         save_file(APPLIED_FILE, applied)
     return jsonify({"ok": True})
 
-# ─── Expired State (hidden) ───────────────────────────────────────────────────────
 @app.route("/expired", methods=["GET"])
 def get_expired():
     return jsonify(load_file(EXPIRED_FILE))
@@ -352,7 +357,8 @@ def salary_stats():
             "missing_skills": j.get("missing_skills", []),
             "verdict": j.get("verdict",""),
             "url": j.get("url","")
-        } for j in sorted(group, key=lambda x: x.get("fit_score",0) if x.get("fit_score","") != "" else 0, reverse=True)]
+        } for j in sorted(group, key=lambda x: x.get("fit_score",0)
+                          if x.get("fit_score","") != "" else 0, reverse=True)]
 
     return jsonify({"annual": summarize(annual), "hourly": summarize(hourly), "missing": summarize(missing)})
 
@@ -428,19 +434,13 @@ def run_pipeline(config):
     try:
         mode = config["mode"]
 
-        state["stage"] = "Scraping LinkedIn..."
+        state["stage"] = "Scraping LinkedIn + fetching descriptions..."
         scrape_jobs(config)
 
         if state["stop_requested"]:
             raise StopIteration("Stopped by user after scraping")
 
         if mode in ["with_scoring", "full"]:
-            state["stage"] = "Fetching job descriptions..."
-            fetch_descriptions(config)
-
-            if state["stop_requested"]:
-                raise StopIteration("Stopped by user after fetching descriptions")
-
             state["stage"] = "Scoring jobs with AI..."
             score_jobs(config)
 
@@ -492,234 +492,266 @@ def save_jobs():
 
     log(f"Saved {len(existing)} jobs to data/")
 
-# ─── Step 1: Scrape ───────────────────────────────────────────────────────────
+# ─── Helper: extract description from page body ───────────────────────────────
+def extract_description(page):
+    """Try CSS selector first, fall back to body text split."""
+    # Try structured selectors
+    for selector in [".jobs-description__content", ".description__text",
+                     ".job-view-layout", "[class*='description']"]:
+        try:
+            el = page.query_selector(selector)
+            if el:
+                text = el.inner_text().strip()
+                if len(text) > 200:
+                    return text[:12000]
+        except:
+            pass
+
+    # Fallback: body text split on "About the job"
+    try:
+        body = page.inner_text("body")
+        if "About the job" in body:
+            desc = body.split("About the job")[-1].strip()
+            return desc[:12000]
+    except:
+        pass
+
+    return ""
+
+# ─── Helper: extract salary from page body ────────────────────────────────────
+def extract_salary(page):
+    salary_patterns = [
+        r'[\$€£]\s*[\d,\.]+\s*[kK]?\s*[-–]\s*[\$€£]?\s*[\d,\.]+\s*[kK]?',
+        r'[\d,\.]+\s*[kK]?\s*[-–]\s*[\d,\.]+\s*[kK]?\s*(EUR|USD|GBP|€|\$)',
+        r'[\$€£]\s*[\d,\.]+\s*(per hour|per year|\/hr|\/yr|annually)',
+    ]
+    try:
+        body = page.inner_text("body")
+        for line in body.split("\n"):
+            line = line.strip()
+            for pattern in salary_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    return re.sub(r'\s*·.*$', '', line).strip()
+    except:
+        pass
+    return ""
+
+# ─── Step 1: Scrape + Fetch Descriptions (merged, single session) ─────────────
 def scrape_jobs(config):
     from playwright.sync_api import sync_playwright
+    import re as _re
+
     all_jobs = []
+    seen = set()           # dedup during scrape — prevents duplicate navigations
+    job_counter = 0        # for periodic long pauses
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                       "Chrome/120.0.0.0 Safari/537.36"
         )
         page = context.new_page()
 
+        # ── Login ──────────────────────────────────────────────────────────────
         log("Logging into LinkedIn...")
         page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
-        page.wait_for_timeout(2000)
-        username_el = page.query_selector("#username")
-        if username_el:
-            page.fill("#username", config["email"])
-            page.fill("#password", config["password"])
-            page.click("button[type=submit]")
-            page.wait_for_timeout(6000)
-            log(f"Logged in — now on: {page.url}")
-        else:
-            log(f"Skipped login — already on: {page.url}")
+        try:
+            page.wait_for_timeout(3000)
+            page.evaluate(f"document.querySelector('input[type=\"email\"]').value = '{config['email']}'")
+            page.evaluate(f"document.querySelector('input[type=\"password\"]').value = '{config['password']}'")
+            page.evaluate("document.querySelector('button[type=\"submit\"]').click()")
+            page.wait_for_timeout(random.randint(6000, 9000))
+            current_url = page.url
+            if "feed" in current_url or "jobs" in current_url:
+                log(f"✓ Logged in — now on: {current_url}")
+            else:
+                page.screenshot(path="debug_login.png")
+                log(f"✗ Login failed — ended up on: {current_url} — screenshot saved")
+                browser.close()
+                return
+        except Exception as e:
+            page.screenshot(path="debug_login.png")
+            log(f"✗ Login failed: {e} — screenshot saved to debug_login.png")
+            browser.close()
+            return
 
+        # ── Scrape each keyword ────────────────────────────────────────────────
         for keyword in config["keywords"]:
+            if state["stop_requested"]:
+                break
             log(f"Scraping: {keyword}")
+
             for page_num in range(0, config["pages"]):
-                url = f"https://www.linkedin.com/jobs/search/?keywords={keyword.replace(' ', '+')}&location={config['location']}&f_TPR={config['time_filter']}&sortBy=R&start={page_num * 25}"
-                try:
-                    page.goto(url, timeout=45000, wait_until="domcontentloaded")
-                    page.wait_for_timeout(4000)
-                except Exception as e:
-                    log(f"  Timeout on page {page_num+1} for '{keyword}' — stopping this keyword")
+                if state["stop_requested"]:
                     break
 
+                search_url = (
+                    f"https://www.linkedin.com/jobs/search/"
+                    f"?keywords={keyword.replace(' ', '+')}"
+                    f"&location={config['location']}"
+                    f"&f_TPR={config['time_filter']}"
+                    f"&sortBy=R&start={page_num * 25}"
+                )
+
+                try:
+                    page.goto(search_url, timeout=45000, wait_until="domcontentloaded")
+                    page.wait_for_timeout(random.randint(3000, 5000))
+                except Exception as e:
+                    log(f"  Timeout on page {page_num+1} for '{keyword}' — skipping")
+                    break
+
+                # Scroll to load lazy elements
                 for _ in range(3):
                     page.keyboard.press("End")
-                    page.wait_for_timeout(1500)
+                    page.wait_for_timeout(random.randint(1200, 2000))
 
-                jobs = (page.query_selector_all(".scaffold-layout__list-item") or
-                        page.query_selector_all(".jobs-search__results-list li"))
-                log(f"  Page {page_num+1}: {len(jobs)} jobs")
-                if len(jobs) == 0:
+                job_cards = (
+                    page.query_selector_all(".scaffold-layout__list-item") or
+                    page.query_selector_all(".jobs-search__results-list li")
+                )
+                log(f"  Page {page_num+1}: {len(job_cards)} cards found")
+
+                if len(job_cards) == 0:
                     break
 
-                for job in jobs:
-                    title = (job.query_selector(".job-card-list__title--link span[aria-hidden='true']") or
-                             job.query_selector(".base-search-card__title"))
-                    company = (job.query_selector(".artdeco-entity-lockup__subtitle span") or
-                               job.query_selector(".base-search-card__subtitle"))
-                    location_el = (job.query_selector(".artdeco-entity-lockup__caption li span") or
-                                   job.query_selector(".job-search-card__location"))
-                    link = (job.query_selector("a.job-card-list__title--link") or
-                            job.query_selector("a.base-card__full-link"))
-                    job_id_el = (job.query_selector("[data-job-id]") or
-                                 job.query_selector("[data-entity-urn]"))
+                # ── Extract card metadata ──────────────────────────────────────
+                cards_data = []
+                for card in job_cards:
+                    title_el = (
+                        card.query_selector(".job-card-list__title--link span[aria-hidden='true']") or
+                        card.query_selector(".base-search-card__title")
+                    )
+                    company_el = (
+                        card.query_selector(".artdeco-entity-lockup__subtitle span") or
+                        card.query_selector(".base-search-card__subtitle")
+                    )
+                    location_el = (
+                        card.query_selector(".artdeco-entity-lockup__caption li span") or
+                        card.query_selector(".job-search-card__location")
+                    )
+                    link_el = (
+                        card.query_selector("a.job-card-list__title--link") or
+                        card.query_selector("a.base-card__full-link")
+                    )
+                    id_el = (
+                        card.query_selector("[data-job-id]") or
+                        card.query_selector("[data-entity-urn]")
+                    )
+
+                    if not (title_el and link_el):
+                        continue
 
                     job_id = ""
-                    if job_id_el:
-                        job_id = job_id_el.get_attribute("data-job-id") or ""
+                    if id_el:
+                        job_id = id_el.get_attribute("data-job-id") or ""
                         if not job_id:
-                            urn = job_id_el.get_attribute("data-entity-urn") or ""
+                            urn = id_el.get_attribute("data-entity-urn") or ""
                             job_id = urn.split(":")[-1] if urn else ""
 
-                    if title and link:
-                        href = link.get_attribute("href") or ""
-                        url = href if href.startswith("http") else "https://www.linkedin.com" + href
-                        all_jobs.append({
-                            "id": job_id,
-                            "title": title.inner_text().strip(),
-                            "company": company.inner_text().strip() if company else "",
-                            "location": location_el.inner_text().strip() if location_el else "",
-                            "url": url,
-                            "keyword": keyword,
-                            "description": "",
-                            "salary": "",
-                            "scored": False
-                        })
+                    href = link_el.get_attribute("href") or ""
+                    url = href if href.startswith("http") else "https://www.linkedin.com" + href
 
-                time.sleep(2)  # rate limit between pages
+                    # Extract numeric job ID from URL as fallback
+                    if not job_id:
+                        match = _re.search(r'(\d{9,})', url)
+                        job_id = match.group(1) if match else url
+
+                    cards_data.append({
+                        "id": job_id,
+                        "title": title_el.inner_text().strip(),
+                        "company": company_el.inner_text().strip() if company_el else "",
+                        "location": location_el.inner_text().strip() if location_el else "",
+                        "url": url,
+                        "keyword": keyword,
+                    })
+
+                # ── Fetch description for each new card ────────────────────────
+                for card_data in cards_data:
+                    if state["stop_requested"]:
+                        break
+
+                    job_id = card_data["id"]
+
+                    # Skip duplicates before navigating
+                    if job_id in seen:
+                        continue
+                    seen.add(job_id)
+
+                    job = {
+                        **card_data,
+                        "description": "",
+                        "salary": "",
+                        "scored": False,
+                    }
+
+                    # Navigate to job page
+                    match = _re.search(r'(\d{9,})', card_data["url"])
+                    job_url = (
+                        f"https://www.linkedin.com/jobs/view/{match.group(1)}"
+                        if match else card_data["url"]
+                    )
+
+                    try:
+                        page.goto(job_url, timeout=45000, wait_until="domcontentloaded")
+                        page.wait_for_timeout(random.randint(3000, 5000))
+
+                        # Accept cookie consent if shown
+                        for cookie_text in ["Accept", "Accept cookies"]:
+                            try:
+                                btn = page.query_selector(f"button:has-text('{cookie_text}')")
+                                if btn:
+                                    btn.click(force=True)
+                                    page.wait_for_timeout(1000)
+                                    break
+                            except:
+                                pass
+
+                        # Expand full description
+                        for btn_text in ["Show more", "See more"]:
+                            try:
+                                btn = page.query_selector(f"button:has-text('{btn_text}')")
+                                if btn:
+                                    btn.click(force=True)
+                                    page.wait_for_timeout(800)
+                                    break
+                            except:
+                                pass
+
+                        job["description"] = extract_description(page)
+                        job["salary"] = extract_salary(page)
+
+                        job_counter += 1
+                        if job_counter % 10 == 0:
+                            status = "✓" if job["description"] else "⚠ no desc"
+                            log(f"  [{job_counter}] {job['title'][:45]} — {status}")
+
+                    except Exception as e:
+                        log(f"  Error fetching {card_data['title'][:40]}: {e}")
+
+                    all_jobs.append(job)
+                    state["jobs"] = all_jobs  # live update for status endpoint
+
+                    # ── Random wait between jobs ───────────────────────────────
+                    # Every 25 jobs take a longer break to avoid rate limiting
+                    if job_counter > 0 and job_counter % 25 == 0:
+                        pause = random.randint(45, 90)
+                        log(f"  ⏸ Pause {pause}s every 25 jobs...")
+                        time.sleep(pause)
+                    else:
+                        time.sleep(random.uniform(8, 15))
+
+                # Wait between search result pages
+                time.sleep(random.uniform(5, 8))
 
         browser.close()
 
-    seen = set()
-    unique = []
-    for job in all_jobs:
-        if job["id"] and job["id"] not in seen:
-            seen.add(job["id"])
-            unique.append(job)
+    log(f"Total unique jobs scraped: {len(all_jobs)}")
+    log(f"  With descriptions: {len([j for j in all_jobs if j.get('description')])}")
+    state["jobs"] = all_jobs
 
-    state["jobs"] = unique
-    log(f"Total unique jobs scraped: {len(unique)}")
-
-# ─── Step 2: Fetch Descriptions ───────────────────────────────────────────────
-def fetch_descriptions(config):
-    from playwright.sync_api import sync_playwright
-    jobs = state["jobs"]
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-
-        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
-        page.wait_for_timeout(2000)
-        username_el = page.query_selector("#username")
-        if username_el:
-            page.fill("#username", config["email"])
-            page.fill("#password", config["password"])
-            page.click("button[type=submit]")
-            page.wait_for_timeout(6000)
-            log(f"Logged in for descriptions — on: {page.url}")
-        else:
-            # Username field not found immediately, wait and try again
-            page.wait_for_selector("#username", timeout=15000)
-            log("✓ Username field loaded after wait")
-            page.fill("#username", config["email"])
-            page.fill("#password", config["password"])
-            page.click("button[type=submit]")
-            page.wait_for_timeout(6000)
-            log(f"Logged in for descriptions — on: {page.url}")
-
-        import re as _re
-        for i, job in enumerate(jobs):
-            try:
-                # Extract numeric job ID and build clean URL
-                raw_url = job["url"]
-                match = _re.search(r'(\d{9,})', raw_url)
-                job_url = f"https://www.linkedin.com/jobs/view/{match.group(1)}" if match else raw_url
-
-                page.goto(job_url, timeout=45000, wait_until="domcontentloaded")
-                page.wait_for_timeout(3000)
-
-                # Accept cookie consent if shown
-                for cookie_text in ["Accept", "Accept cookies"]:
-                    try:
-                        btn = page.query_selector(f"button:has-text('{cookie_text}')")
-                        if btn:
-                            btn.click(force=True)
-                            page.wait_for_timeout(1500)
-                            break
-                    except:
-                        pass
-
-                # Expand description
-                for btn_text in ["Show more", "See more"]:
-                    try:
-                        btn = page.query_selector(f"button:has-text('{btn_text}')")
-                        if btn:
-                            btn.click(force=True)
-                            page.wait_for_timeout(1000)
-                            break
-                    except:
-                        break
-
-                body_text = page.inner_text("body")
-                
-                # Extract description by text splitting — LinkedIn doesn't use fixed CSS classes
-                desc = ""
-                
-                if "About the job" in body_text:
-                    # Split on "About the job" and grab everything after it
-                    parts = body_text.split("About the job")
-                    if len(parts) > 1:
-                        # Get the content after "About the job"
-                        after_header = parts[-1].strip()
-                        
-                        # Stop at next major section (common LinkedIn footers/CTAs)
-                        stop_phrases = [
-                            "Show more",
-                            "Show less",
-                            "Easy Apply",
-                            "Sign in to view",
-                            "More jobs from",
-                            "People who viewed",
-                            "Follow the company",
-                            "Recommended for you"
-                        ]
-                        
-                        for phrase in stop_phrases:
-                            if phrase in after_header:
-                                after_header = after_header.split(phrase)[0].strip()
-                                break
-                        
-                        if len(after_header) > 100:  # Sanity check: description should be substantial
-                            desc = after_header[:12000]
-                
-                if desc:
-                    job["description"] = desc
-                    
-                if i % 10 == 0:
-                    status = "✓" if job.get("description") else "⚠"
-                    log(f"  {status} {job['title'][:50]}: {len(job.get('description', ''))} chars")
-
-                salary_patterns = [
-                    r'[\$€£]\s*[\d,\.]+\s*[kK]?\s*[-–]\s*[\$€£]?\s*[\d,\.]+\s*[kK]?',
-                    r'[\d,\.]+\s*[kK]?\s*[-–]\s*[\d,\.]+\s*[kK]?\s*(EUR|USD|GBP|€|\$)',
-                    r'[\$€£]\s*[\d,\.]+\s*(per hour|per year|\/hr|\/yr|annually)',
-                ]
-                for line in body_text.split("\n"):
-                    line = line.strip()
-                    for pattern in salary_patterns:
-                        if re.search(pattern, line, re.IGNORECASE):
-                            job["salary"] = re.sub(r'\s*·.*$', '', line).strip()
-                            break
-                    if job.get("salary"):
-                        break
-
-                if i % 10 == 0:
-                    log(f"  Fetched descriptions: {i+1}/{len(jobs)}")
-
-            except Exception as e:
-                log(f"  Error fetching {job['title']}: {e}")
-
-            if state["stop_requested"]:
-                log(f"  Stopping description fetch at job {i+1}/{len(jobs)}")
-                break
-
-            time.sleep(1.5)
-
-        browser.close()
-
-    log(f"Descriptions fetched for {len([j for j in jobs if j.get('description')])} jobs")
-
-# ─── Step 3: Score Jobs ───────────────────────────────────────────────────────
+# ─── Step 2: Score Jobs ───────────────────────────────────────────────────────
 def score_jobs(config):
     import anthropic
     resume = config.get("resume_text", "No resume provided")
@@ -745,7 +777,7 @@ JOB TITLE: {job['title']}
 COMPANY: {job['company']}
 LOCATION: {job['location']}
 JOB DESCRIPTION:
-{job.get('description', '')[:6000]}
+{job.get('description', '')[:12000]}
 
 Respond ONLY in this exact JSON format, no other text:
 {{
@@ -760,7 +792,7 @@ Respond ONLY in this exact JSON format, no other text:
 
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -788,7 +820,7 @@ Respond ONLY in this exact JSON format, no other text:
     state["scored_jobs"] = scored
     log(f"Scoring complete: {len([j for j in scored if j.get('scored')])} jobs scored")
 
-# ─── Step 4: Clusters + Plan ──────────────────────────────────────────────────
+# ─── Step 3: Clusters + Plan ──────────────────────────────────────────────────
 def generate_clusters_and_plan(config):
     import anthropic
     profession = config.get("profession", "the relevant field")
@@ -826,7 +858,7 @@ Respond ONLY in JSON:
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=6000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -876,7 +908,7 @@ def generate_csv():
     date_str = datetime.now().strftime("%Y-%m-%d")
     path = OUTPUTS_DIR / f"job_results_{date_str}.csv"
 
-    with open(path, "w", newline="") as f:
+    with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Title","Company","Location","Salary","Salary Type",
                          "Fit Score","Response Probability","Missing Skills","Verdict","URL"])
@@ -902,7 +934,7 @@ def generate_csv():
 def generate_skills_txt():
     clusters = state.get("clusters", [])
     path = OUTPUTS_DIR / "skill_clusters.txt"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("SKILL GAP ANALYSIS\n" + "=" * 60 + "\n\n")
         if not clusters:
             jobs = state["scored_jobs"] or state["jobs"]
@@ -924,7 +956,7 @@ def generate_skills_txt():
 def generate_plan_txt():
     plan = state.get("study_plan", [])
     path = OUTPUTS_DIR / "study_plan.txt"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("4-WEEK STUDY PLAN\n" + "=" * 60 + "\n\n")
         if not plan:
             f.write("Run in 'Full Analysis' mode to generate a personalized study plan.\n")
