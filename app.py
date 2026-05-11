@@ -554,14 +554,16 @@ def scrape_jobs(config):
         )
         page = context.new_page()
 
-        # ── Login ──────────────────────────────────────────────────────────────
+# ── Login ──────────────────────────────────────────────────────────────
         log("Logging into LinkedIn...")
-        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded")
+        page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
         try:
-            page.wait_for_timeout(3000)
-            page.evaluate(f"document.querySelector('input[type=\"email\"]').value = '{config['email']}'")
-            page.evaluate(f"document.querySelector('input[type=\"password\"]').value = '{config['password']}'")
-            page.evaluate("document.querySelector('button[type=\"submit\"]').click()")
+            page.locator('input[type="email"]').first.fill(config["email"], force=True)
+            page.wait_for_timeout(500)
+            page.locator('input[type="password"]').first.fill(config["password"], force=True)
+            page.wait_for_timeout(500)
+            page.locator('button[type="submit"]').first.click(force=True)
             page.wait_for_timeout(random.randint(6000, 9000))
             current_url = page.url
             if "feed" in current_url or "jobs" in current_url:
@@ -576,7 +578,7 @@ def scrape_jobs(config):
             log(f"✗ Login failed: {e} — screenshot saved to debug_login.png")
             browser.close()
             return
-
+        
         # ── Scrape each keyword ────────────────────────────────────────────────
         for keyword in config["keywords"]:
             if state["stop_requested"]:
