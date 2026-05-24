@@ -800,6 +800,9 @@
     btn.disabled = false;
     btn.classList.remove('running');
     btn.innerHTML = '✗ Error — try again';
+    // The progress panel hosts the log-box; without showing it the error is
+    // written into an invisible element. Reveal it so the user actually sees.
+    document.getElementById('progress').style.display = 'block';
     document.getElementById('log-box').innerHTML = `<div class="err">Error: ${msg}</div>`;
     document.getElementById('stop-btn').style.display = 'none';
     document.getElementById('reset-btn').style.display = 'block';
@@ -823,6 +826,34 @@
   setMode('scraper_only');
   loadAllStatus();
   loadConfig();
+
+  // On page load, sync UI with whatever the server is doing right now.
+  // Without this, a running pipeline (or one with leftover logs) is invisible
+  // because polling only starts when YOU click Run successfully.
+  async function syncWithServer() {
+    try {
+      const res = await fetch('/status');
+      const data = await res.json();
+      const hasLogs = data.log && data.log.length > 0;
+      if (data.running || hasLogs) {
+        document.getElementById('progress').style.display = 'block';
+        updateUI(data);
+        if (data.running) {
+          document.getElementById('stop-btn').style.display = 'block';
+          document.getElementById('reset-btn').style.display = 'none';
+          const btn = document.getElementById('run-btn');
+          btn.disabled = true;
+          btn.classList.add('running');
+          btn.innerHTML = '⏳ Pipeline running…';
+          startPolling();
+        } else {
+          // Not running but has logs — show Reset so user can clear them
+          document.getElementById('reset-btn').style.display = 'block';
+        }
+      }
+    } catch (e) { console.error('syncWithServer failed', e); }
+  }
+  syncWithServer();
 </script>  <!-- Application Type Modal -->
   <div class="modal" id="appTypeModal">
     <div class="modal-content">

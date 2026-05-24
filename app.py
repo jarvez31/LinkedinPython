@@ -43,7 +43,9 @@ state = {
 }
 
 def log(msg):
-    print(msg)
+    # flush=True ensures lines appear in the terminal immediately even when
+    # stdout is piped (e.g. under `conda run`, IDE consoles, log files).
+    print(msg, flush=True)
     state["log"].append(msg)
 
 # ─── File Helpers ─────────────────────────────────────────────────────────────
