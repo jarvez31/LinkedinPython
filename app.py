@@ -83,6 +83,22 @@ def get_config():
             return jsonify(json.load(f))
     return jsonify({})
 
+def _persist_config(cfg):
+    """Save form values to config.json so they prefill on next load."""
+    keys = ["email", "password", "anthropic_key", "keywords", "location", "profession"]
+    out = {}
+    for k in keys:
+        v = cfg.get(k, "")
+        # keywords is stored as list in cfg — flatten back to comma string for the form
+        if k == "keywords" and isinstance(v, list):
+            v = ", ".join(v)
+        out[k] = v
+    try:
+        with open(BASE_DIR / "config.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        log(f"Warning: could not save config.json: {e}")
+
 @app.route("/status")
 def status():
     return jsonify({
@@ -106,9 +122,13 @@ def stop():
 
 @app.route("/reset", methods=["POST"])
 def reset():
-    if state["running"]:
-        return jsonify({"error": "Still running, stop first"}), 400
-    state["stop_requested"] = False
+    # Always allow reset, even when "running" is True — this rescues the user
+    # from a stuck pipeline (e.g. Playwright hang). The background thread (if
+    # actually alive) will see stop_requested on its next checkpoint and exit;
+    # if it was a stale flag from a crashed run, this just clears it.
+    was_running = state["running"]
+    state["running"] = False
+    state["stop_requested"] = True if was_running else False
     state["stage"] = ""
     state["log"] = []
     state["jobs"] = []
@@ -116,7 +136,10 @@ def reset():
     state["clusters"] = []
     state["study_plan"] = []
     state["error"] = None
-    log("Pipeline reset. Ready to run.")
+    if was_running:
+        log("⚠ Force-reset while running — any background work will be discarded.")
+    else:
+        log("Pipeline reset. Ready to run.")
     return jsonify({"ok": True})
 
 @app.route("/run", methods=["POST"])
@@ -157,6 +180,9 @@ def run():
                     config["resume_text"] = "\n".join(p.text for p in doc.paragraphs)
             except Exception as e:
                 log(f"Warning: could not extract resume text: {e}")
+
+    # Persist form values so they prefill on next page load
+    _persist_config(config)
 
     state["running"] = True
     state["stop_requested"] = False
@@ -550,7 +576,8 @@ def scrape_jobs(config):
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                       "Chrome/120.0.0.0 Safari/537.36"
+                       "Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
         )
         page = context.new_page()
 
@@ -559,11 +586,21 @@ def scrape_jobs(config):
         page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(5000)
         try:
-            page.locator('input[type="email"]').first.fill(config["email"], force=True)
+            # LinkedIn renders hidden autofill input stubs that come BEFORE the
+            # real visible inputs in DOM order. `.first` without `:visible`
+            # focuses a hidden input and keystrokes are silently lost.
+            email_input = page.locator('input[type="email"]:visible').first
+            email_input.wait_for(state="visible", timeout=15000)
+            email_input.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type(config["email"], delay=50)
             page.wait_for_timeout(500)
-            page.locator('input[type="password"]').first.fill(config["password"], force=True)
+            pwd_input = page.locator('input[type="password"]:visible').first
+            pwd_input.click()
+            page.wait_for_timeout(300)
+            page.keyboard.type(config["password"], delay=50)
             page.wait_for_timeout(500)
-            page.locator('button[type="submit"]').first.click(force=True)
+            page.keyboard.press("Enter")
             page.wait_for_timeout(random.randint(6000, 9000))
             current_url = page.url
             if "feed" in current_url or "jobs" in current_url:

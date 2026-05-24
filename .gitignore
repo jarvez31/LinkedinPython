@@ -5,6 +5,8 @@ outputs/
 old_files/
 __pycache__/
 debug_*.png
+smoke_*.png
+.claude/
 *.pyc
 *.pyc
 attachments/
