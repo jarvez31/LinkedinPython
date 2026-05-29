@@ -21,7 +21,19 @@
 
 ## Quick Start
 
-### 1. Clone & setup
+### Option A: Docker (recommended — zero dependency install)
+
+```bash
+git clone https://github.com/jarvez31/LinkedinPython
+cd LinkedinPython
+# Create a .env file with your credentials:
+cp .env.example .env
+# Edit .env — add your LinkedIn + LLM credentials
+docker compose up --build
+```
+Open **http://localhost:5000**. Works identically on Windows, macOS, and Linux.
+
+### Option B: Manual (Python + Playwright)
 
 **macOS / Linux**
 ```bash
@@ -39,12 +51,14 @@ setup.bat
 
 ### 2. Add your credentials
 
-Edit the `.env` file created by setup and fill in your details:
+Edit the `.env` file and fill in your details:
 
 ```
 LINKEDIN_EMAIL=your-email@example.com
 LINKEDIN_PASSWORD=your-password
-ANTHROPIC_API_KEY=sk-ant-api03-...
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-sonnet-4-6
+LLM_API_KEY=sk-ant-api03-...
 ```
 
 ### 3. Run

@@ -1151,6 +1151,8 @@ def generate_plan_txt():
     return str(path)
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "127.0.0.1")
     print("Starting Job Scraper Dashboard...")
-    print("Open http://localhost:5000 in your browser")
-    app.run(debug=False, port=5000)
+    print(f"Open http://localhost:{port} in your browser")
+    app.run(debug=False, host=host, port=port)
