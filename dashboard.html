@@ -210,14 +210,14 @@
       <div class="field-grid">
         <div class="field"><label>Keywords (comma separated)</label><input type="text" name="keywords" placeholder="e.g. Machine Learning Engineer, Data Scientist, Software Engineer"></div>
         <div class="field-row">
-          <div class="field"><label>Location</label><input type="text" name="location" placeholder="Vienna" value="Vienna"></div>
-          <div class="field"><label>Profession / field <span style="color:var(--muted);font-size:10px">(for AI scorer)</span></label><input type="text" name="profession" placeholder="e.g. ML Engineer, UX Designer"></div>
+          <div class="field"><label>Location</label><input type="text" name="location" placeholder="e.g. Vienna, Remote, New York"></div>
+          <div class="field"><label>Profession / field <span style="color:var(--muted);font-size:10px">(for AI scorer)</span></label><input type="text" name="profession" placeholder="e.g. Software Engineer, Nurse, Designer"></div>
         </div>
         <div class="field-row">
           <div class="field">
             <label>Pages per keyword</label>
             <select name="pages">
-              <option value="1">🧪 Test (1 job)</option>
+              <option value="1">1 page (~25 jobs)</option>
               <option value="3">3 pages (~75 jobs)</option>
               <option value="5" selected>5 pages (~125 jobs)</option>
               <option value="10">10 pages (~250 jobs)</option>
@@ -247,8 +247,31 @@
         </div>
       </div>
       <div class="form-section">
-        <div class="section-label">Claude API Key</div>
-        <div class="field"><label>Anthropic API Key (console.anthropic.com)</label><input type="password" name="anthropic_key" placeholder="sk-ant-..."></div>
+        <div class="section-label">AI Provider</div>
+        <div class="field-grid">
+          <div class="field-row">
+            <div class="field">
+              <label>Provider</label>
+              <select name="llm_provider" id="llm-provider" onchange="updateProviderUI()">
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI (GPT-4o)</option>
+                <option value="custom">Custom (OpenAI-compatible)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Model</label>
+              <input type="text" name="llm_model" id="llm-model" placeholder="claude-sonnet-4-6">
+            </div>
+          </div>
+          <div class="field" id="base-url-field" style="display:none">
+            <label>Base URL <span style="color:var(--muted);font-size:10px">(OpenRouter, Ollama, etc.)</span></label>
+            <input type="text" name="llm_base_url" placeholder="https://api.openrouter.ai/v1">
+          </div>
+          <div class="field">
+            <label id="api-key-label">API Key</label>
+            <input type="password" name="llm_api_key" id="llm-api-key" placeholder="sk-...">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -380,7 +403,8 @@
   function renderJobCard(job) {
     const fit     = job.fit_score !== '' ? `<span class="job-tag fit">Fit: ${job.fit_score}</span>` : '';
     const prob    = job.response_probability !== '' ? `<span class="job-tag prob">Callback: ${job.response_probability}%</span>` : '';
-    const salary  = job.salary ? `<span class="job-tag salary">${job.salary}</span>` : '';
+    const salaryConf = job.salary_confidence === 'unverified' ? 'style="opacity:0.6" title="Auto-detected — may be inaccurate"' : '';
+    const salary  = job.salary ? `<span class="job-tag salary" ${salaryConf}>${job.salary}${job.salary_confidence === 'unverified' ? ' ?' : ''}</span>` : '';
     const verdict = job.verdict ? `<div class="job-verdict">${job.verdict}</div>` : '';
     const matched = (job.matched_skills || []).slice(0, 5);
     const missing = (job.missing_skills || []).slice(0, 5);
@@ -418,7 +442,8 @@
     const jobId  = job.url || job.title;
     const fit    = job.fit_score ? `<span class="job-tag fit">Fit: ${job.fit_score}</span>` : '';
     const prob   = job.response_probability ? `<span class="job-tag prob">Callback: ${job.response_probability}%</span>` : '';
-    const sal    = job.salary ? `<span class="job-tag salary">${job.salary}</span>` : '';
+    const salConf = job.salary_confidence === 'unverified' ? 'style="opacity:0.6" title="Auto-detected — may be inaccurate"' : '';
+    const sal    = job.salary ? `<span class="job-tag salary" ${salConf}>${job.salary}${job.salary_confidence === 'unverified' ? ' ?' : ''}</span>` : '';
     const missing = (job.missing_skills || []).slice(0, 5);
     const missingHtml = missing.length ? `<div class="skills-section"><div class="skills-label">✗ Missing</div><div class="skills-wrap">${missing.map(s=>`<span class="skill-tag missing">${s}</span>`).join('')}</div></div>` : '';
     const encodedId = encodeURIComponent(jobId);
@@ -676,14 +701,43 @@
   }
 
   // ── Pipeline Controls ─────────────────────────────────────────────────────
+  function updateProviderUI() {
+    const provider = document.getElementById('llm-provider').value;
+    const modelInput = document.getElementById('llm-model');
+    const apiKeyLabel = document.getElementById('api-key-label');
+    const baseUrlField = document.getElementById('base-url-field');
+    const defaults = {
+      anthropic:  { model: 'claude-sonnet-4-6',   keyLabel: 'Anthropic API Key',      placeholder: 'sk-ant-...' },
+      openai:     { model: 'gpt-4o',               keyLabel: 'OpenAI API Key',          placeholder: 'sk-...' },
+      custom:     { model: 'gpt-4o',               keyLabel: 'API Key',                 placeholder: 'sk-...' },
+    };
+    const d = defaults[provider];
+    if (!modelInput.value || modelInput.value === Object.values(defaults).find(v => v.model === modelInput.value)?.model) {
+      modelInput.value = d.model;
+    }
+    modelInput.placeholder = d.model;
+    apiKeyLabel.textContent = d.keyLabel;
+    document.getElementById('llm-api-key').placeholder = d.placeholder;
+    baseUrlField.style.display = provider === 'custom' ? 'flex' : 'none';
+  }
+
   function setMode(mode) {
     currentMode = mode;
     document.getElementById('mode-input').value = mode;
     document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
     document.getElementById('mode-' + mode).classList.add('active');
     const aiFields = document.getElementById('ai-fields');
-    if (mode === 'scraper_only') aiFields.classList.add('hidden');
-    else aiFields.classList.remove('hidden');
+    const resumeInput = document.getElementById('resume-input');
+    const apiKeyInput = document.getElementById('llm-api-key');
+    if (mode === 'scraper_only') {
+      aiFields.classList.add('hidden');
+      resumeInput.removeAttribute('required');
+      if (apiKeyInput) apiKeyInput.removeAttribute('required');
+    } else {
+      aiFields.classList.remove('hidden');
+      resumeInput.setAttribute('required', '');
+      if (apiKeyInput) apiKeyInput.setAttribute('required', '');
+    }
   }
 
   function showFileName(input) {
@@ -815,7 +869,9 @@
       const cfg = await res.json();
       if (cfg.email)         document.querySelector('input[name=email]').value = cfg.email;
       if (cfg.password)      document.querySelector('input[name=password]').value = cfg.password;
-      if (cfg.anthropic_key) document.querySelector('input[name=anthropic_key]').value = cfg.anthropic_key;
+      if (cfg.llm_provider)  { document.getElementById('llm-provider').value = cfg.llm_provider; updateProviderUI(); }
+      if (cfg.llm_model)     document.getElementById('llm-model').value = cfg.llm_model;
+      if (cfg.llm_api_key)   document.getElementById('llm-api-key').value = cfg.llm_api_key;
       if (cfg.keywords)      document.querySelector('input[name=keywords]').value = cfg.keywords;
       if (cfg.location)      document.querySelector('input[name=location]').value = cfg.location;
       if (cfg.profession)    document.querySelector('input[name=profession]').value = cfg.profession;

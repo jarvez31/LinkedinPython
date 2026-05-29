@@ -2,16 +2,31 @@
 Smoke test for the pipeline — verifies each external dependency works
 before committing to a full scrape. Run from project root:
 
-    conda activate scraper
     python smoke_test.py
 """
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
+# Force UTF-8 output on Windows
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+from dotenv import load_dotenv
+
 BASE = Path(__file__).parent
-CFG_FILE = BASE / "config.json"
+PERSONAL_DIR = BASE / "_personal"
+IS_PERSONAL = PERSONAL_DIR.exists()
+
+if IS_PERSONAL:
+    load_dotenv(PERSONAL_DIR / ".env")
+    CFG_FILE = PERSONAL_DIR / "config.json"
+else:
+    load_dotenv(BASE / ".env")
+    CFG_FILE = BASE / "config.json"
 
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -29,43 +44,73 @@ def fail(msg):
     failures += 1
     bad(msg)
 
-# ─── 1. config.json ───────────────────────────────────────────────────────────
-step(1, "Load config.json")
-if not CFG_FILE.exists():
-    fail(f"{CFG_FILE} not found")
-    sys.exit(1)
-with open(CFG_FILE, encoding="utf-8") as f:
-    cfg = json.load(f)
-for key in ["email", "password", "anthropic_key", "keywords", "location"]:
+# ─── 1. Load config ────────────────────────────────────────────────────────────
+step(1, "Load config (.env secrets + config.json preferences)")
+cfg = {}
+# Secrets from .env
+for key in ["LINKEDIN_EMAIL", "LINKEDIN_PASSWORD", "LLM_PROVIDER", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL"]:
+    val = os.environ.get(key, "")
+    if val:
+        cfg[key] = val
+# Legacy fallback for old ANTHROPIC_API_KEY
+if not cfg.get("LLM_API_KEY") and os.environ.get("ANTHROPIC_API_KEY"):
+    cfg["LLM_API_KEY"] = os.environ["ANTHROPIC_API_KEY"]
+    cfg.setdefault("LLM_PROVIDER", "anthropic")
+# Preferences from config.json
+if CFG_FILE.exists():
+    with open(CFG_FILE, encoding="utf-8") as f:
+        cfg.update(json.load(f))
+
+# Map to the keys the rest of the script expects
+cfg.setdefault("email", cfg.get("LINKEDIN_EMAIL", ""))
+cfg.setdefault("password", cfg.get("LINKEDIN_PASSWORD", ""))
+cfg.setdefault("llm_provider", cfg.get("LLM_PROVIDER", "anthropic"))
+cfg.setdefault("llm_model", cfg.get("LLM_MODEL", "claude-sonnet-4-6"))
+cfg.setdefault("llm_api_key", cfg.get("LLM_API_KEY", ""))
+cfg.setdefault("llm_base_url", cfg.get("LLM_BASE_URL", ""))
+cfg.setdefault("keywords", "")
+cfg.setdefault("location", "")
+
+for key in ["email", "password", "llm_provider", "llm_model", "llm_api_key", "keywords", "location"]:
     val = cfg.get(key, "")
     if val:
-        shown = val if key not in ("password", "anthropic_key") else (val[:6] + "..." + val[-4:])
+        shown = val if key in ("password", "llm_api_key") else val
+        if key in ("password", "llm_api_key") and len(str(val)) > 10:
+            shown = str(val)[:6] + "..." + str(val)[-4:]
         ok(f"{key} = {shown}")
     else:
         fail(f"{key} is empty")
 
 # ─── 2. Python imports ────────────────────────────────────────────────────────
 step(2, "Import required packages")
-for mod in ["flask", "playwright.sync_api", "anthropic", "pdfplumber", "docx", "tinydb"]:
+for mod in ["flask", "playwright.sync_api", "anthropic", "openai", "pdfplumber", "docx"]:
     try:
         __import__(mod)
         ok(f"import {mod}")
     except Exception as e:
         fail(f"import {mod} failed: {e}")
 
-# ─── 3. Anthropic API key works ──────────────────────────────────────────────
-step(3, "Verify Anthropic API key (1-token call)")
+# ─── 3. LLM API key works ──────────────────────────────────────────────────────
+step(3, f"Verify LLM API key — {cfg['llm_provider']} / {cfg['llm_model']}")
 try:
-    import anthropic
-    client = anthropic.Anthropic(api_key=cfg["anthropic_key"])
-    resp = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=5,
-        messages=[{"role": "user", "content": "Say 'ok'"}],
-    )
-    ok(f"API responded: {resp.content[0].text.strip()!r}  (model={resp.model})")
+    provider = cfg["llm_provider"]
+    api_key = cfg["llm_api_key"]
+    model = cfg["llm_model"]
+    if provider == "anthropic":
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        resp = client.messages.create(model=model, max_tokens=5,
+                                      messages=[{"role": "user", "content": "Say 'ok'"}])
+        ok(f"API responded: {resp.content[0].text.strip()!r}")
+    else:
+        import openai
+        base_url = cfg.get("llm_base_url", "") or None
+        client = openai.OpenAI(api_key=api_key, base_url=base_url) if base_url else openai.OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(model=model, max_tokens=5,
+                                              messages=[{"role": "user", "content": "Say 'ok'"}])
+        ok(f"API responded: {resp.choices[0].message.content.strip()!r}")
 except Exception as e:
-    fail(f"Anthropic API call failed: {e}")
+    fail(f"LLM API call failed: {e}")
 
 # ─── 4. Playwright browser launch ─────────────────────────────────────────────
 step(4, "Launch Playwright Chromium")

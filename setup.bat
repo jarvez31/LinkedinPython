@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo ==========================================
-echo   KarrierPython Setup (Windows)
+echo   LinkedinPython Setup (Windows)
 echo   Job Intelligence Dashboard
 echo ==========================================
 echo.

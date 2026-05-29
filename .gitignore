@@ -1,20 +1,29 @@
+# Personal data — everything in _personal/ is yours only
+_personal/
+
+# Runtime
+__pycache__/
+*.pyc
+*.pyo
 .env
 config.json
-data/
-outputs/
-old_files/
-__pycache__/
+
+# Screenshots from debug/smoke runs
 debug_*.png
 smoke_*.png
+*_test.png
+
+# Virtual environment
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
 .claude/
-*.pyc
-*.pyc
-attachments/
-*.h5
-*.json
+
+# Allow gitkeep files in product directories
 !data/.gitkeep
 !outputs/.gitkeep
-.DS_Store
-files.zip
-older_scraper/
-debug_fetch.py
+!attachments/.gitkeep

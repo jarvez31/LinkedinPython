@@ -10,15 +10,30 @@ from pathlib import Path
 from collections import Counter
 import tempfile
 
+from dotenv import load_dotenv
+
+# If _personal/ exists, load .env and data from there (personal mode).
+# If not, use root paths (clean product mode for new users).
+BASE_DIR = Path(__file__).parent
+PERSONAL_DIR = BASE_DIR / "_personal"
+IS_PERSONAL = PERSONAL_DIR.exists()
+
+if IS_PERSONAL:
+    load_dotenv(PERSONAL_DIR / ".env")
+    DATA_DIR = PERSONAL_DIR / "data"
+    OUTPUTS_DIR = PERSONAL_DIR / "outputs"
+else:
+    load_dotenv(BASE_DIR / ".env")
+    DATA_DIR = BASE_DIR / "data"
+    OUTPUTS_DIR = BASE_DIR / "outputs"
+
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-# ─── Paths ────────────────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
-OUTPUTS_DIR = BASE_DIR / "outputs"
 DATA_DIR.mkdir(exist_ok=True)
 OUTPUTS_DIR.mkdir(exist_ok=True)
+
+CONFIG_FILE = (PERSONAL_DIR if IS_PERSONAL else BASE_DIR) / "config.json"
 
 JOBS_FILE           = DATA_DIR / "linkedin_jobs.json"
 SCORED_FILE         = DATA_DIR / "linkedin_jobs_scored.json"
@@ -79,24 +94,49 @@ def index():
 
 @app.route("/config")
 def get_config():
-    config_path = BASE_DIR / "config.json"
+    """Merge .env secrets (take priority) with config.json preferences."""
+    cfg = {}
+    # Load preferences from config.json (keywords, location, profession)
+    config_path = CONFIG_FILE
     if config_path.exists():
         with open(config_path, encoding="utf-8") as f:
-            return jsonify(json.load(f))
-    return jsonify({})
+            cfg.update(json.load(f))
+    # Secrets from .env always take priority
+    for env_key, cfg_key in [("LINKEDIN_EMAIL", "email"),
+                              ("LINKEDIN_PASSWORD", "password")]:
+        val = os.environ.get(env_key, "")
+        if val:
+            cfg[cfg_key] = val
+    # LLM config — new unified keys with legacy fallback
+    cfg.setdefault("llm_provider", os.environ.get("LLM_PROVIDER", "anthropic"))
+    cfg.setdefault("llm_model", os.environ.get("LLM_MODEL", "claude-sonnet-4-6"))
+    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    if api_key:
+        cfg["llm_api_key"] = api_key
+    return jsonify(cfg)
 
 def _persist_config(cfg):
-    """Save form values to config.json so they prefill on next load."""
-    keys = ["email", "password", "anthropic_key", "keywords", "location", "profession"]
+    """Save non-sensitive preferences to config.json. Secrets stay in .env."""
+    pref_keys = ["keywords", "location", "profession", "llm_provider", "llm_model"]
     out = {}
-    for k in keys:
+    # Preserve existing preferences if not in this request
+    config_path = CONFIG_FILE
+    if config_path.exists():
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                for k in pref_keys:
+                    if k in (existing := json.load(f)):
+                        out[k] = existing[k]
+        except Exception:
+            pass
+    for k in pref_keys:
         v = cfg.get(k, "")
-        # keywords is stored as list in cfg — flatten back to comma string for the form
         if k == "keywords" and isinstance(v, list):
             v = ", ".join(v)
-        out[k] = v
+        if v:
+            out[k] = v
     try:
-        with open(BASE_DIR / "config.json", "w", encoding="utf-8") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
     except Exception as e:
         log(f"Warning: could not save config.json: {e}")
@@ -158,8 +198,11 @@ def run():
         "email": data.get("email", ""),
         "password": data.get("password", ""),
         "keywords": [k.strip() for k in data.get("keywords", "").split(",") if k.strip()],
-        "location": data.get("location", "Vienna"),
-        "anthropic_key": data.get("anthropic_key", ""),
+        "location": data.get("location", ""),
+        "llm_provider": data.get("llm_provider", "") or os.environ.get("LLM_PROVIDER", "anthropic"),
+        "llm_model": data.get("llm_model", "") or os.environ.get("LLM_MODEL", "claude-sonnet-4-6"),
+        "llm_api_key": data.get("llm_api_key", "") or os.environ.get("LLM_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", ""),
+        "llm_base_url": data.get("llm_base_url", "") or os.environ.get("LLM_BASE_URL", ""),
         "time_filter": data.get("time_filter", "r604800"),
         "pages": int(data.get("pages", 5)),
         "profession": data.get("profession", "").strip(),
@@ -185,6 +228,13 @@ def run():
 
     # Persist form values so they prefill on next page load
     _persist_config(config)
+
+    # Validate API key before launching pipeline (fail fast)
+    if mode in ("with_scoring", "full"):
+        try:
+            _llm_ping(config)
+        except Exception as e:
+            return jsonify({"error": f"LLM API key / connection invalid: {e}"}), 400
 
     state["running"] = True
     state["stop_requested"] = False
@@ -457,6 +507,52 @@ def load_csv():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ─── LLM Helpers (multi-provider) ─────────────────────────────────────────────
+def _llm_client(config):
+    """Return an API client for the configured provider."""
+    provider = config.get("llm_provider", "anthropic")
+    api_key = config.get("llm_api_key", "")
+    base_url = config.get("llm_base_url", "")
+
+    if provider == "anthropic":
+        import anthropic
+        return ("anthropic", anthropic.Anthropic(api_key=api_key))
+    elif provider == "openai":
+        import openai
+        return ("openai", openai.OpenAI(api_key=api_key))
+    elif provider == "custom":
+        import openai
+        url = base_url or "https://api.openai.com/v1"
+        return ("openai", openai.OpenAI(api_key=api_key, base_url=url))
+    else:
+        raise ValueError(f"Unknown LLM provider: {provider}")
+
+def _llm_ping(config):
+    """Quick validation call to check API key / connectivity."""
+    provider, client = _llm_client(config)
+    model = config.get("llm_model", "claude-sonnet-4-6")
+    if provider == "anthropic":
+        client.messages.create(model=model, max_tokens=1,
+                               messages=[{"role": "user", "content": "ping"}])
+    else:
+        client.chat.completions.create(model=model, max_tokens=1,
+                                       messages=[{"role": "user", "content": "ping"}])
+
+def _llm_chat(config, prompt, max_tokens=2000):
+    """Send a prompt and return the text response. Routes to correct SDK."""
+    provider, client = _llm_client(config)
+    model = config.get("llm_model", "claude-sonnet-4-6")
+    if provider == "anthropic":
+        resp = client.messages.create(
+            model=model, max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}])
+        return resp.content[0].text.strip()
+    else:
+        resp = client.chat.completions.create(
+            model=model, max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}])
+        return resp.choices[0].message.content.strip()
+
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 def run_pipeline(config):
     try:
@@ -522,47 +618,90 @@ def save_jobs():
 
 # ─── Helper: extract description from page body ───────────────────────────────
 def extract_description(page):
-    """Try CSS selector first, fall back to body text split."""
-    # Try structured selectors
-    for selector in [".jobs-description__content", ".description__text",
-                     ".job-view-layout", "[class*='description']"]:
+    """Extract job description. LinkedIn uses hashed class names so we rely
+    on text landmarks rather than CSS selectors."""
+    # Landmarks LinkedIn uses for the JD section (English + German)
+    landmarks = ["About the job", "Job description",
+                 "Über den Job", "Stellenbeschreibung"]
+
+    # Find which landmark is on the page
+    try:
+        body = page.inner_text("body")
+    except:
+        return ""
+    marker = None
+    for lm in landmarks:
+        if lm in body:
+            marker = lm
+            break
+    if not marker:
+        return ""
+
+    # Try section/article containing the landmark for cleaner extraction
+    for tag in ["section", "article"]:
         try:
-            el = page.query_selector(selector)
-            if el:
-                text = el.inner_text().strip()
-                if len(text) > 200:
-                    return text[:12000]
+            container = page.locator(tag).filter(has_text=marker).first
+            if container.count():
+                text = container.inner_text()
+                idx = text.find(marker)
+                if idx >= 0:
+                    desc = text[idx + len(marker):].strip()
+                    if len(desc) > 200:
+                        return desc[:12000]
         except:
             pass
 
-    # Fallback: body text split on "About the job"
-    try:
-        body = page.inner_text("body")
-        if "About the job" in body:
-            desc = body.split("About the job")[-1].strip()
-            return desc[:12000]
-    except:
-        pass
-
-    return ""
+    # Fallback: body text split on the landmark
+    desc = body.split(marker)[-1].strip()
+    return desc[:12000] if desc else ""
 
 # ─── Helper: extract salary from page body ────────────────────────────────────
 def extract_salary(page):
+    """Returns (confidence, salary_text). confidence: 'verified' | 'unverified' | 'none'."""
+    salary_keywords = [
+        "salary", "gehalt", "compensation", "vergütung", "€", "$", "£",
+        "/yr", "/hr", "per year", "per hour", "annually", "jährlich",
+        "monatlich", "hourly", "k/y", "pro jahr", "pro monat",
+    ]
+
+    def _has_salary_keyword(line):
+        lower = line.lower()
+        return any(kw.lower() in lower for kw in salary_keywords)
+
+    def _clean(text):
+        return re.sub(r'\s*·.*$', '', text).strip()
+
     salary_patterns = [
         r'[\$€£]\s*[\d,\.]+\s*[kK]?\s*[-–]\s*[\$€£]?\s*[\d,\.]+\s*[kK]?',
         r'[\d,\.]+\s*[kK]?\s*[-–]\s*[\d,\.]+\s*[kK]?\s*(EUR|USD|GBP|€|\$)',
         r'[\$€£]\s*[\d,\.]+\s*(per hour|per year|\/hr|\/yr|annually)',
     ]
+
     try:
+        # High confidence: LinkedIn's own salary elements
+        for sel in [".salary-compensation", "[class*='salary']",
+                     ".jobs-unified-top-card__job-insight"]:
+            try:
+                el = page.query_selector(sel)
+                if el:
+                    text = el.inner_text().strip()
+                    if text and 3 < len(text) < 200 and _has_salary_keyword(text):
+                        return ("verified", _clean(text))
+            except:
+                pass
+
+        # Medium confidence: regex match on a line with a salary keyword nearby
         body = page.inner_text("body")
         for line in body.split("\n"):
             line = line.strip()
+            if not _has_salary_keyword(line):
+                continue
             for pattern in salary_patterns:
                 if re.search(pattern, line, re.IGNORECASE):
-                    return re.sub(r'\s*·.*$', '', line).strip()
+                    return ("unverified", _clean(line))
     except:
         pass
-    return ""
+    return ("none", "")
 
 # ─── Step 1: Scrape + Fetch Descriptions (merged, single session) ─────────────
 def scrape_jobs(config):
@@ -761,7 +900,9 @@ def scrape_jobs(config):
                                 pass
 
                         job["description"] = extract_description(page)
-                        job["salary"] = extract_salary(page)
+                        salary_conf, salary_text = extract_salary(page)
+                        job["salary"] = salary_text
+                        job["salary_confidence"] = salary_conf
 
                         job_counter += 1
                         if job_counter % 10 == 0:
@@ -794,10 +935,8 @@ def scrape_jobs(config):
 
 # ─── Step 2: Score Jobs ───────────────────────────────────────────────────────
 def score_jobs(config):
-    import anthropic
     resume = config.get("resume_text", "No resume provided")
     profession = config.get("profession", "the relevant field")
-    client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
     jobs = state["jobs"]
     scored = []
 
@@ -805,22 +944,27 @@ def score_jobs(config):
         if not job.get("description"):
             continue
 
-        prompt = f"""You are a senior recruiter and career coach specialising in {profession or "the relevant field"} roles.
+        # Only pass salary if we got it from a reliable source
+        salary_line = ""
+        if job.get("salary_confidence") == "verified" and job.get("salary"):
+            salary_line = f"SALARY: {job['salary']}\n"
 
-Evaluate this candidate for the specific job below. Be precise and honest, not generic.
-Base your evaluation strictly on what is in the resume vs what the job actually requires.
-Consider: location match, visa/work authorization if mentioned, seniority level, competition.
+        prompt = f"""You are a hiring advisor evaluating a candidate for a specific job. Be direct — no flattery, no filler.
 
-CANDIDATE RESUME:
+Compare the resume against the job requirements. Consider: seniority match, skill overlap, location/visa fit, realistic callback odds. Only mention compensation if it is listed and relevant.
+
+RESUME:
 {resume}
 
-JOB TITLE: {job['title']}
-COMPANY: {job['company']}
-LOCATION: {job['location']}
-JOB DESCRIPTION:
+JOB:
+Title: {job['title']}
+Company: {job['company']}
+Location: {job['location']}
+{salary_line}
+DESCRIPTION:
 {job.get('description', '')[:12000]}
 
-Respond ONLY in this exact JSON format, no other text:
+Return a JSON object with exactly these keys. Do NOT wrap the response in markdown or add any other text:
 {{
   "fit_score": <0-100>,
   "matched_skills": ["skill1", "skill2"],
@@ -828,16 +972,11 @@ Respond ONLY in this exact JSON format, no other text:
   "response_probability": <0-100>,
   "general_gaps": "2 honest sentences on the biggest gaps",
   "resume_suggestions": ["suggestion 1", "suggestion 2", "suggestion 3"],
-  "verdict": "One direct sentence: should they apply and why"
+  "verdict": "One sentence: apply or skip, and why"
 }}"""
 
         try:
-            response = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            text = response.content[0].text.strip()
+            text = _llm_chat(config, prompt, max_tokens=2000)
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
@@ -863,47 +1002,46 @@ Respond ONLY in this exact JSON format, no other text:
 
 # ─── Step 3: Clusters + Plan ──────────────────────────────────────────────────
 def generate_clusters_and_plan(config):
-    import anthropic
     profession = config.get("profession", "the relevant field")
-    client = anthropic.Anthropic(api_key=config.get("anthropic_key", ""))
     jobs = state["scored_jobs"] or state["jobs"]
     resume = config.get("resume_text", "")
 
     all_missing = []
     for job in jobs:
         all_missing.extend(job.get("missing_skills", []))
-    freq = Counter(all_missing).most_common(40)
+    freq = Counter(all_missing).most_common(30)
     skill_list = "\n".join([f"- {s} ({c}x)" for s, c in freq])
     job_summaries = "\n".join([
         f"- {j['title']} @ {j['company']} | fit: {j.get('fit_score', '?')} | missing: {', '.join(j.get('missing_skills', [])[:3])}"
         for j in sorted(jobs, key=lambda x: x.get('fit_score', 0), reverse=True)[:30]
     ])
 
-    prompt = f"""You are a senior career coach specialising in {profession or "this field"}.
+    location = config.get("location", "")
+    location_line = f" targeting jobs in/around {location}." if location else ""
 
-A candidate is applying to {len(jobs)} job listings. Based on their resume and skill gaps, do two things:
+    prompt = f"""You are a career strategist building a personalised skill-up plan.
 
-1. SKILL CLUSTERS: Group missing skills into 6-8 clusters. For each:
-   name, skills, score_boost (0-15), jobs_impacted, days, resource, priority (high/medium/low)
+A candidate is applying to {len(jobs)} job listings{location_line} Their resume and aggregated skill gaps are below.
 
-2. STUDY PLAN: 4-week day-by-day plan. Highest ROI first. Week 4 = apply + polish.
-   Each day: focus, tasks (3), deliverable, hours (2-4)
+1. SKILL CLUSTERS: Group missing skills into 5-7 thematic clusters. For each: name, skills (list), score_boost (0-15 — how many fit-score points this adds), jobs_impacted (count), days_to_learn, one free resource (URL or book title), priority (high/medium/low).
 
-RESUME: {resume[:2000]}
-TOP JOBS: {job_summaries}
-MISSING SKILLS: {skill_list}
+2. STUDY PLAN: 4-week day-by-day learning roadmap. Highest-ROI skills first. Week 4 reserved for applications + interview prep. Each day: focus area, 2-3 concrete tasks, one deliverable, 2-4 hours.
 
-Respond ONLY in JSON:
-{{"clusters": [{{"name":"","skills":[],"score_boost":0,"jobs_impacted":0,"days":0,"resource":"","priority":"high"}}],
+RESUME:
+{resume}
+
+TOP JOBS (by fit score):
+{job_summaries}
+
+MISSING SKILLS (by frequency across all jobs):
+{skill_list}
+
+Return a JSON object. Do NOT wrap the response in markdown or add any other text:
+{{"clusters": [{{"name":"","skills":[],"score_boost":0,"jobs_impacted":0,"days_to_learn":0,"resource":"","priority":"high"}}],
 "study_plan": [{{"week":1,"theme":"","days":[{{"day":1,"focus":"","tasks":["","",""],"deliverable":"","hours":3}}]}}]}}"""
 
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=6000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        text = response.content[0].text.strip()
+        text = _llm_chat(config, prompt, max_tokens=6000)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
@@ -989,7 +1127,7 @@ def generate_skills_txt():
                 f.write(f"[{c.get('priority','').upper()}] {c['name']}\n")
                 f.write(f"  Score boost:   +{c.get('score_boost', 0)} pts\n")
                 f.write(f"  Jobs impacted: {c.get('jobs_impacted', '?')}\n")
-                f.write(f"  Days to learn: {c.get('days', '?')}\n")
+                f.write(f"  Days to learn: {c.get('days_to_learn', c.get('days', '?'))}\n")
                 f.write(f"  Resource:      {c.get('resource', '')}\n")
                 f.write(f"  Skills:        {', '.join(c.get('skills', []))}\n\n")
     return str(path)

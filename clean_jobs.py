@@ -7,8 +7,9 @@ Usage: python clean_jobs.py
 import json
 from pathlib import Path
 
-# Data directory
-DATA_DIR = Path("data")
+BASE = Path(__file__).parent
+PERSONAL_DIR = BASE / "_personal"
+DATA_DIR = (PERSONAL_DIR / "data") if PERSONAL_DIR.exists() else (BASE / "data")
 JOBS_FILE = DATA_DIR / "linkedin_jobs.json"
 SCORED_FILE = DATA_DIR / "linkedin_jobs_scored.json"
 

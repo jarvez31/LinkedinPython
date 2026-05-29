@@ -21,38 +21,59 @@
 
 ## Quick Start
 
-### macOS / Linux
+### 1. Clone & setup
 
+**macOS / Linux**
 ```bash
-git clone https://github.com/jarvez31/linkedin-job-scraper-analyser
-cd linkedin-job-scraper-analyser
+git clone https://github.com/jarvez31/LinkedinPython
+cd LinkedinPython
 bash setup.sh
-source venv/bin/activate
-python app.py
 ```
 
-### Windows
-
+**Windows**
 ```bat
-git clone https://github.com/jarvez31/linkedin-job-scraper-analyser
-cd linkedin-job-scraper-analyser
+git clone https://github.com/jarvez31/LinkedinPython
+cd LinkedinPython
 setup.bat
-venv\Scripts\activate
+```
+
+### 2. Add your credentials
+
+Edit the `.env` file created by setup and fill in your details:
+
+```
+LINKEDIN_EMAIL=your-email@example.com
+LINKEDIN_PASSWORD=your-password
+ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+
+### 3. Run
+
+```bash
+source venv/bin/activate   # macOS / Linux
+venv\Scripts\activate      # Windows
 python app.py
 ```
 
 Open **http://localhost:5000** in your browser.
+
+### 4. Smoke test (optional)
+
+Before a full run, verify everything works:
+```bash
+python smoke_test.py
+```
 
 ---
 
 ## Usage
 
 1. Select a mode in the dashboard
-2. Enter your LinkedIn credentials
+2. Enter your LinkedIn credentials (pre-filled from `.env`)
 3. Set keywords, location, pages per keyword, time filter
 4. Enter your **profession or field** — the AI uses this to tailor scoring and the study plan
 5. Upload your resume (PDF or DOCX) — required for scoring modes
-6. Enter your Anthropic API key — required for scoring modes
+6. Enter your Anthropic API key (pre-filled from `.env`) — required for scoring modes
 7. Click **Run Pipeline** — watch the live log
 8. Hit **⚠ Stop** to halt mid-run, **↺ Reset** to start fresh
 9. Download output files or browse the salary tabs
@@ -75,9 +96,9 @@ Saved to `outputs/` folder.
 
 - Python 3.9+
 - A LinkedIn account
-- An Anthropic API key — [console.anthropic.com](https://console.anthropic.com) (~$5 covers 250–300 scored jobs)
+- An Anthropic API key — [console.anthropic.com](https://console.anthropic.com) (~$5 covers 250-300 scored jobs)
 
-> All credentials are entered in the UI — nothing is stored between sessions.
+> Secrets are stored in `.env` (gitignored). Preferences (keywords, location, profession) are saved to `config.json` for convenience.
 
 ---
 
@@ -86,32 +107,25 @@ Saved to `outputs/` folder.
 | Mode | Cost |
 |---|---|
 | Scraper Only | Free |
-| Scraper + AI Score (100 jobs) | ~$1.00–2.00 |
-| Full Analysis (100 jobs) | ~$1.50–2.50 |
+| Scraper + AI Score (100 jobs) | ~$1.00-2.00 |
+| Full Analysis (100 jobs) | ~$1.50-2.50 |
 
 ---
 
 ## Project Structure
 
 ```
-├── app.py                    ← Flask server + pipeline (start here)
+├── app.py                    ← Flask server + full pipeline (scrape, score, clusters, plan)
 ├── dashboard.html            ← Browser UI
+├── smoke_test.py             ← Pre-flight dependency check
+├── clean_jobs.py             ← Remove null-description jobs from data files
 ├── setup.sh / setup.bat      ← One-command setup
 ├── requirements.txt
-│
-├── scraping/
-│   ├── linkedin.py           ← LinkedIn scraper (Playwright)
-│   └── fetch_descriptions.py ← Descriptions + salary extractor
-│
-├── scoring/
-│   ├── score.py              ← Claude API fit scoring
-│   ├── analyze.py            ← ATS keywords, CV language, cover letter angles
-│   ├── study_plan.py         ← Skill boost analysis + study plan
-│   └── cluster.py            ← Skill gap clustering
+├── .env.example              ← Template for your credentials
 │
 ├── data/                     ← Job databases (gitignored)
 ├── outputs/                  ← Generated files (gitignored)
-└── attachments/              ← Resume (gitignored)
+└── attachments/              ← Resume uploads (gitignored)
 ```
 
 ---
@@ -121,4 +135,4 @@ Saved to `outputs/` folder.
 - Uses Playwright (headless Chromium) with rate limiting — works on residential IPs, not cloud servers
 - Jobs deduplicated by ID on every run — re-runs only add new jobs
 - Salary auto-classified: annual / hourly / missing
-- For Austrian/German market: add `Künstliche Intelligenz` and `Maschinelles Lernen` to keywords
+- Run `python smoke_test.py` before your first full pipeline to catch setup issues early
