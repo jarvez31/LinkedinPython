@@ -19,6 +19,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+*.stackdump
 
 # Claude
 .claude/
