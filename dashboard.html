@@ -194,6 +194,7 @@
 
   <form id="main-form" onsubmit="startRun(event)">
     <input type="hidden" id="mode-input" name="mode" value="scraper_only">
+    <input type="hidden" id="single-run-input" name="single_run" value="">
 
     <!-- LinkedIn Credentials -->
     <div class="form-section">
@@ -232,6 +233,17 @@
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Speed <span style="color:var(--muted);font-size:10px">(LinkedIn pace — keeps human-like jitter)</span></label>
+            <select name="speed" id="speed-select">
+              <option value="fast">Fast — small / test batches</option>
+              <option value="balanced" selected>Balanced — recommended</option>
+              <option value="safe">Safe — overnight, large batches</option>
+            </select>
+          </div>
+          <div class="field"></div>
+        </div>
       </div>
     </div>
 
@@ -254,13 +266,17 @@
               <label>Provider</label>
               <select name="llm_provider" id="llm-provider" onchange="updateProviderUI()">
                 <option value="anthropic">Anthropic (Claude)</option>
-                <option value="openai">OpenAI (GPT-4o)</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="llama">Meta Llama</option>
                 <option value="custom">Custom (OpenAI-compatible)</option>
               </select>
             </div>
             <div class="field">
-              <label>Model</label>
-              <input type="text" name="llm_model" id="llm-model" placeholder="claude-sonnet-4-6">
+              <label>Model <span style="color:var(--muted);font-size:10px">(pick or type)</span></label>
+              <input type="text" name="llm_model" id="llm-model" list="model-options" autocomplete="off" placeholder="claude-sonnet-4-6">
+              <datalist id="model-options"></datalist>
             </div>
           </div>
           <div class="field" id="base-url-field" style="display:none">
@@ -276,6 +292,7 @@
     </div>
 
     <button type="submit" class="run-btn" id="run-btn">Run Pipeline</button>
+    <button type="button" class="run-btn" id="test-btn" onclick="startSingleRun()" style="background:transparent;border:1px solid var(--accent);color:var(--accent);margin-top:10px;">🔬 Test Run — login, grab one job, score it</button>
     <button type="button" class="stop-btn" id="stop-btn" onclick="stopRun()">⚠ Stop Pipeline</button>
     <button type="button" class="reset-btn" id="reset-btn" onclick="resetRun()">↺ Reset &amp; Start Fresh</button>
   </form>
@@ -701,24 +718,51 @@
   }
 
   // ── Pipeline Controls ─────────────────────────────────────────────────────
+  // Verified June 2026. Models are suggestions in an editable combo — you can
+  // always type a different id if a provider ships a new one (no code change).
+  const PROVIDER_MODELS = {
+    anthropic: { models: ['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5'],
+                 keyLabel: 'Anthropic API Key', placeholder: 'sk-ant-...', custom: false },
+    deepseek:  { models: ['deepseek-v4-pro','deepseek-v4-flash'],
+                 keyLabel: 'DeepSeek API Key', placeholder: 'sk-...', custom: false },
+    gemini:    { models: ['gemini-2.5-pro','gemini-2.5-flash','gemini-3-flash-preview'],
+                 keyLabel: 'Google AI API Key', placeholder: 'AIza...', custom: false },
+    openai:    { models: ['gpt-4o','gpt-4o-mini'],
+                 keyLabel: 'OpenAI API Key', placeholder: 'sk-...', custom: false },
+    llama:     { models: ['Llama-4-Maverick-17B-128E-Instruct-FP8','Llama-4-Scout-17B-16E-Instruct'],
+                 keyLabel: 'Llama API Key', placeholder: 'LLM|...', custom: false },
+    custom:    { models: [], keyLabel: 'API Key', placeholder: 'sk-...', custom: true },
+  };
+
   function updateProviderUI() {
     const provider = document.getElementById('llm-provider').value;
     const modelInput = document.getElementById('llm-model');
+    const datalist = document.getElementById('model-options');
     const apiKeyLabel = document.getElementById('api-key-label');
     const baseUrlField = document.getElementById('base-url-field');
-    const defaults = {
-      anthropic:  { model: 'claude-sonnet-4-6',   keyLabel: 'Anthropic API Key',      placeholder: 'sk-ant-...' },
-      openai:     { model: 'gpt-4o',               keyLabel: 'OpenAI API Key',          placeholder: 'sk-...' },
-      custom:     { model: 'gpt-4o',               keyLabel: 'API Key',                 placeholder: 'sk-...' },
-    };
-    const d = defaults[provider];
-    if (!modelInput.value || modelInput.value === Object.values(defaults).find(v => v.model === modelInput.value)?.model) {
-      modelInput.value = d.model;
+    const d = PROVIDER_MODELS[provider] || PROVIDER_MODELS.custom;
+
+    // Repopulate model suggestions for this provider.
+    datalist.innerHTML = d.models.map(m => `<option value="${m}"></option>`).join('');
+
+    // If the current value is another provider's known default, swap to this
+    // provider's default. A custom-typed id (not in any list) is preserved.
+    const allKnown = Object.values(PROVIDER_MODELS).flatMap(p => p.models);
+    if (!modelInput.value || (allKnown.includes(modelInput.value) && !d.models.includes(modelInput.value))) {
+      modelInput.value = d.models[0] || '';
     }
-    modelInput.placeholder = d.model;
+    modelInput.placeholder = d.models[0] || 'model-id';
     apiKeyLabel.textContent = d.keyLabel;
     document.getElementById('llm-api-key').placeholder = d.placeholder;
-    baseUrlField.style.display = provider === 'custom' ? 'flex' : 'none';
+    baseUrlField.style.display = d.custom ? 'flex' : 'none';
+  }
+
+  // Test Run: force the single-job flag, make sure the AI key field is visible
+  // (a test always scores), then submit the same form.
+  function startSingleRun() {
+    document.getElementById('single-run-input').value = '1';
+    document.getElementById('ai-fields').classList.remove('hidden');
+    document.getElementById('main-form').requestSubmit();
   }
 
   function setMode(mode) {
@@ -746,10 +790,16 @@
 
   async function startRun(e) {
     e.preventDefault();
+    const formData = new FormData(document.getElementById('main-form'));
+    const isSingle = formData.get('single_run') === '1';
+    // Reset the flag immediately so the next normal Run isn't a test run.
+    document.getElementById('single-run-input').value = '';
+
     const btn = document.getElementById('run-btn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Running...';
+    btn.innerHTML = '<span class="spinner"></span>' + (isSingle ? 'Testing one job...' : 'Running...');
     btn.classList.add('running');
+    document.getElementById('test-btn').disabled = true;
 
     document.getElementById('progress').style.display = 'block';
     document.getElementById('downloads').style.display = 'none';
@@ -758,7 +808,6 @@
     document.getElementById('stop-btn').style.display = 'block';
     document.getElementById('reset-btn').style.display = 'none';
 
-    const formData = new FormData(document.getElementById('main-form'));
     try {
       const res = await fetch('/run', { method: 'POST', body: formData });
       const data = await res.json();
@@ -799,6 +848,7 @@
     const btn = document.getElementById('run-btn');
     btn.disabled = false;
     btn.classList.remove('running');
+    document.getElementById('test-btn').disabled = false;
     document.getElementById('stop-btn').style.display = 'none';
     document.getElementById('reset-btn').style.display = 'block';
 
@@ -840,6 +890,7 @@
     document.getElementById('run-btn').disabled = false;
     document.getElementById('run-btn').classList.remove('running');
     document.getElementById('run-btn').innerHTML = 'Run Pipeline';
+    document.getElementById('test-btn').disabled = false;
     document.getElementById('stop-btn').style.display = 'none';
     document.getElementById('stop-btn').disabled = false;
     document.getElementById('stop-btn').textContent = '⚠ Stop Pipeline';
@@ -854,6 +905,7 @@
     btn.disabled = false;
     btn.classList.remove('running');
     btn.innerHTML = '✗ Error — try again';
+    document.getElementById('test-btn').disabled = false;
     // The progress panel hosts the log-box; without showing it the error is
     // written into an invisible element. Reveal it so the user actually sees.
     document.getElementById('progress').style.display = 'block';
@@ -871,6 +923,8 @@
       if (cfg.password)      document.querySelector('input[name=password]').value = cfg.password;
       if (cfg.llm_provider)  { document.getElementById('llm-provider').value = cfg.llm_provider; updateProviderUI(); }
       if (cfg.llm_model)     document.getElementById('llm-model').value = cfg.llm_model;
+      if (cfg.llm_base_url)  { const f = document.querySelector('input[name=llm_base_url]'); if (f) f.value = cfg.llm_base_url; }
+      if (cfg.speed)         document.getElementById('speed-select').value = cfg.speed;
       if (cfg.llm_api_key)   document.getElementById('llm-api-key').value = cfg.llm_api_key;
       if (cfg.keywords)      document.querySelector('input[name=keywords]').value = cfg.keywords;
       if (cfg.location)      document.querySelector('input[name=location]').value = cfg.location;
@@ -901,6 +955,7 @@
           btn.disabled = true;
           btn.classList.add('running');
           btn.innerHTML = '⏳ Pipeline running…';
+          document.getElementById('test-btn').disabled = true;
           startPolling();
         } else {
           // Not running but has logs — show Reset so user can clear them

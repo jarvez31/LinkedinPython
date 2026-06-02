@@ -54,16 +54,28 @@ if not exist ".env" (
     echo [OK] .env already exists
 )
 
+:: Desktop shortcut -> launch_dashboard.bat
+echo.
+echo Creating desktop shortcut...
+set "SHORTCUT=%USERPROFILE%\Desktop\LinkedinPython.lnk"
+set "TARGET=%~dp0launch_dashboard.bat"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT%'); $s.TargetPath='%TARGET%'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%SystemRoot%\System32\SHELL32.dll,220'; $s.Description='LinkedinPython Job Dashboard'; $s.Save()"
+if exist "%SHORTCUT%" (
+    echo [OK] Desktop shortcut created: LinkedinPython
+) else (
+    echo [WARN] Could not create desktop shortcut ^(run launch_dashboard.bat directly^)
+)
+
 echo.
 echo ==========================================
 echo   Setup complete!
 echo ==========================================
 echo.
-echo To start the dashboard:
+echo To start the dashboard, either:
+echo   - Double-click the "LinkedinPython" shortcut on your Desktop, or
+echo   - Double-click launch_dashboard.bat in this folder, or
+echo   - Run manually:  venv\Scripts\activate  ^&  python app.py
 echo.
-echo   venv\Scripts\activate
-echo   python app.py
-echo.
-echo Then open http://localhost:5000 in your browser.
+echo The dashboard opens at http://localhost:5000
 echo.
 pause

@@ -57,11 +57,44 @@ state = {
     "error": None
 }
 
+# Handle to the live pipeline thread so a new Run can force the previous
+# session to wind down before starting completely fresh.
+pipeline_thread = None
+
 def log(msg):
     # flush=True ensures lines appear in the terminal immediately even when
     # stdout is piped (e.g. under `conda run`, IDE consoles, log files).
     print(msg, flush=True)
     state["log"].append(msg)
+
+# ─── Pacing (anti-rate-limit jitter) ──────────────────────────────────────────
+# All delays keep randomness — constant intervals are the easiest bot signal —
+# but the tier controls how aggressive the pace is. "safe" is the old overnight
+# pace; "balanced" is the interactive default; "fast" is for small/test runs.
+SPEED_PROFILES = {
+    "fast":     {"between": (2, 4),   "page_ms": (1500, 2500),
+                 "batch_every": 0,    "batch_pause": (0, 0),   "login_ms": (3000, 5000)},
+    "balanced": {"between": (4, 8),   "page_ms": (2000, 3500),
+                 "batch_every": 40,   "batch_pause": (20, 35), "login_ms": (4000, 6000)},
+    "safe":     {"between": (8, 15),  "page_ms": (3000, 5000),
+                 "batch_every": 25,   "batch_pause": (45, 90), "login_ms": (6000, 9000)},
+}
+
+def _profile(config):
+    return SPEED_PROFILES.get(config.get("speed", "balanced"), SPEED_PROFILES["balanced"])
+
+def interruptible_sleep(seconds):
+    """Sleep in ~0.3s slices, bailing the instant a stop is requested.
+    Returns False if interrupted, True if it slept the full duration. This is
+    what makes Stop feel instant instead of waiting out a 90s pause."""
+    end = time.time() + seconds
+    while True:
+        remaining = end - time.time()
+        if remaining <= 0:
+            return True
+        if state["stop_requested"]:
+            return False
+        time.sleep(min(0.3, remaining))
 
 # ─── File Helpers ─────────────────────────────────────────────────────────────
 def load_file(path):
@@ -110,6 +143,7 @@ def get_config():
     # LLM config — new unified keys with legacy fallback
     cfg.setdefault("llm_provider", os.environ.get("LLM_PROVIDER", "anthropic"))
     cfg.setdefault("llm_model", os.environ.get("LLM_MODEL", "claude-sonnet-4-6"))
+    cfg.setdefault("speed", os.environ.get("SPEED", "balanced"))
     api_key = os.environ.get("LLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
     if api_key:
         cfg["llm_api_key"] = api_key
@@ -117,7 +151,8 @@ def get_config():
 
 def _persist_config(cfg):
     """Save non-sensitive preferences to config.json. Secrets stay in .env."""
-    pref_keys = ["keywords", "location", "profession", "llm_provider", "llm_model"]
+    pref_keys = ["keywords", "location", "profession", "llm_provider", "llm_model",
+                 "llm_base_url", "speed"]
     out = {}
     # Preserve existing preferences if not in this request
     config_path = CONFIG_FILE
@@ -186,15 +221,27 @@ def reset():
 
 @app.route("/run", methods=["POST"])
 def run():
-    if state["running"]:
-        return jsonify({"error": "Already running"}), 400
+    global pipeline_thread
+
+    # Run = a brand-new session. If a previous pipeline is still alive (or left
+    # a stale running flag), signal it to stop and let it wind down its browser
+    # before we wipe state and start fresh — "like a new app.py was started".
+    if state["running"] or (pipeline_thread and pipeline_thread.is_alive()):
+        state["stop_requested"] = True
+        if pipeline_thread and pipeline_thread.is_alive():
+            pipeline_thread.join(timeout=12)
+        state["running"] = False
 
     data = request.form
     files = request.files
     mode = data.get("mode")
 
+    single_run = data.get("single_run", "") in ("1", "true", "True", "on")
+
     config = {
         "mode": mode,
+        "single_run": single_run,
+        "speed": "fast" if single_run else (data.get("speed", "") or "balanced"),
         "email": data.get("email", ""),
         "password": data.get("password", ""),
         "keywords": [k.strip() for k in data.get("keywords", "").split(",") if k.strip()],
@@ -204,10 +251,15 @@ def run():
         "llm_api_key": data.get("llm_api_key", "") or os.environ.get("LLM_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", ""),
         "llm_base_url": data.get("llm_base_url", "") or os.environ.get("LLM_BASE_URL", ""),
         "time_filter": data.get("time_filter", "r604800"),
-        "pages": int(data.get("pages", 5)),
+        "pages": 1 if single_run else int(data.get("pages", 5)),
         "profession": data.get("profession", "").strip(),
         "resume_text": ""
     }
+
+    # A single test run is login → 1 JD → score. Always score, never cluster
+    # (clustering one job is meaningless), regardless of the selected mode.
+    if single_run:
+        config["mode"] = mode = "with_scoring"
 
     if "resume" in files:
         resume_file = files["resume"]
@@ -249,6 +301,7 @@ def run():
     thread = threading.Thread(target=run_pipeline, args=(config,))
     thread.daemon = True
     thread.start()
+    pipeline_thread = thread
 
     return jsonify({"ok": True})
 
@@ -507,31 +560,154 @@ def load_csv():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ─── Provider / Model Registry ────────────────────────────────────────────────
+# Verified June 2026. For each provider:
+#   sdk       — which client path ("anthropic" native, or "openai"-compatible)
+#   base_url  — OpenAI-compatible endpoint (None = SDK default / native host)
+#   models    — {model_id: max_output_tokens}. NOTE: context window (how much
+#               INPUT a model accepts, often 200K–1M) is NOT the same as the
+#               max OUTPUT tokens a single call may return. The number below is
+#               the OUTPUT ceiling — that's what max_tokens must be clamped to.
+PROVIDERS = {
+    "anthropic": {
+        "sdk": "anthropic",
+        "base_url": None,
+        "models": {
+            "claude-opus-4-8":   64000,
+            "claude-sonnet-4-6": 64000,
+            "claude-haiku-4-5":  32000,
+        },
+    },
+    "deepseek": {
+        "sdk": "openai",
+        "base_url": "https://api.deepseek.com",
+        "models": {
+            # deepseek-chat / deepseek-reasoner are DEPRECATED — do not use.
+            "deepseek-v4-pro":   65536,
+            "deepseek-v4-flash": 65536,
+        },
+    },
+    "gemini": {
+        "sdk": "openai",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "models": {
+            "gemini-2.5-pro":          65536,
+            "gemini-2.5-flash":        65536,
+            "gemini-3-flash-preview":  65536,
+        },
+    },
+    "openai": {
+        "sdk": "openai",
+        "base_url": None,
+        "models": {
+            "gpt-4o":      16000,
+            "gpt-4o-mini": 16000,
+        },
+    },
+    "llama": {
+        "sdk": "openai",
+        "base_url": "https://api.llama.com/compat/v1/",
+        "models": {
+            "Llama-4-Maverick-17B-128E-Instruct-FP8": 16000,
+            "Llama-4-Scout-17B-16E-Instruct":         16000,
+        },
+    },
+    "custom": {
+        "sdk": "openai",
+        "base_url": None,   # user supplies llm_base_url
+        "models": {},        # user types any model id
+    },
+}
+
+# Fallback output ceiling for unknown / user-typed models.
+DEFAULT_MAX_OUTPUT = 8000
+
+# Automatic parallel-scoring concurrency per provider. Tuned to stay comfortably
+# under each provider's default rate limits — the user never sets this. DeepSeek
+# is generous; the rest are kept conservative so low API tiers don't hit 429s.
+PROVIDER_WORKERS = {
+    "anthropic": 4,
+    "deepseek":  8,
+    "gemini":    4,
+    "openai":    4,
+    "llama":     3,
+    "custom":    3,
+}
+
+def _auto_workers(config, job_count):
+    """Pick a safe number of parallel scoring workers automatically.
+    Never exceeds the number of jobs, and an optional SCORE_WORKERS env var
+    lets a power user override without any UI."""
+    if config.get("single_run") or job_count <= 1:
+        return 1
+    env = os.environ.get("SCORE_WORKERS")
+    if env:
+        try:
+            return max(1, min(int(env), 12))
+        except ValueError:
+            pass
+    base = PROVIDER_WORKERS.get(config.get("llm_provider", "anthropic"), 3)
+    return max(1, min(base, job_count))
+
+# Substrings that mean the browser/context is gone for good. Once we see one,
+# retrying just burns 45s per attempt for hours (the original 4-hour hang) —
+# so we abort the scrape and keep whatever we already have.
+_FATAL_PW_SUBSTRINGS = (
+    "target page, context or browser has been closed",
+    "browser has been closed",
+    "context has been closed",
+    "context was destroyed",
+    "browser closed",
+    "connection closed",
+    "has crashed",
+    "crashed",
+)
+
+def _is_fatal_pw_error(e):
+    msg = str(e).lower()
+    return any(s in msg for s in _FATAL_PW_SUBSTRINGS)
+
+def _provider_spec(provider):
+    # Unknown provider name → treat as a custom OpenAI-compatible endpoint.
+    return PROVIDERS.get(provider, PROVIDERS["custom"])
+
+def _model_max_output(provider, model):
+    return _provider_spec(provider).get("models", {}).get(model, DEFAULT_MAX_OUTPUT)
+
+def _resolve_max_tokens(config, want):
+    """Clamp a desired output-token budget to the chosen model's real ceiling.
+    Fixes the old hardcoded 2000 cap that truncated output on large models."""
+    cap = _model_max_output(config.get("llm_provider", "anthropic"),
+                            config.get("llm_model", ""))
+    return max(256, min(want, cap))
+
 # ─── LLM Helpers (multi-provider) ─────────────────────────────────────────────
 def _llm_client(config):
-    """Return an API client for the configured provider."""
+    """Return (sdk_name, client) for the configured provider."""
     provider = config.get("llm_provider", "anthropic")
     api_key = config.get("llm_api_key", "")
-    base_url = config.get("llm_base_url", "")
+    spec = _provider_spec(provider)
+    # Explicit user override (custom) wins over the registry default.
+    url = config.get("llm_base_url", "") or spec.get("base_url")
 
-    if provider == "anthropic":
+    if spec["sdk"] == "anthropic":
         import anthropic
-        return ("anthropic", anthropic.Anthropic(api_key=api_key))
-    elif provider == "openai":
-        import openai
-        return ("openai", openai.OpenAI(api_key=api_key))
-    elif provider == "custom":
-        import openai
-        url = base_url or "https://api.openai.com/v1"
-        return ("openai", openai.OpenAI(api_key=api_key, base_url=url))
+        kwargs = {"api_key": api_key}
+        if url:
+            kwargs["base_url"] = url
+        return ("anthropic", anthropic.Anthropic(**kwargs))
     else:
-        raise ValueError(f"Unknown LLM provider: {provider}")
+        import openai
+        kwargs = {"api_key": api_key}
+        if url:
+            kwargs["base_url"] = url
+        return ("openai", openai.OpenAI(**kwargs))
 
 def _llm_ping(config):
     """Quick validation call to check API key / connectivity."""
-    provider, client = _llm_client(config)
+    sdk, client = _llm_client(config)
     model = config.get("llm_model", "claude-sonnet-4-6")
-    if provider == "anthropic":
+    if sdk == "anthropic":
         client.messages.create(model=model, max_tokens=1,
                                messages=[{"role": "user", "content": "ping"}])
     else:
@@ -539,30 +715,52 @@ def _llm_ping(config):
                                        messages=[{"role": "user", "content": "ping"}])
 
 def _llm_chat(config, prompt, max_tokens=2000):
-    """Send a prompt and return the text response. Routes to correct SDK."""
-    provider, client = _llm_client(config)
+    """Send a prompt and return the text response. Routes to correct SDK.
+    Output budget is clamped to the model's ceiling and usage is logged so the
+    real input/output token counts are visible in the live log."""
+    sdk, client = _llm_client(config)
     model = config.get("llm_model", "claude-sonnet-4-6")
-    if provider == "anthropic":
+    capped = _resolve_max_tokens(config, max_tokens)
+    if sdk == "anthropic":
         resp = client.messages.create(
-            model=model, max_tokens=max_tokens,
+            model=model, max_tokens=capped,
             messages=[{"role": "user", "content": prompt}])
+        try:
+            u = resp.usage
+            log(f"  · tokens in={u.input_tokens} out={u.output_tokens} (cap {capped})")
+        except Exception:
+            pass
         return resp.content[0].text.strip()
     else:
         resp = client.chat.completions.create(
-            model=model, max_tokens=max_tokens,
+            model=model, max_tokens=capped,
             messages=[{"role": "user", "content": prompt}])
+        try:
+            u = resp.usage
+            log(f"  · tokens in={u.prompt_tokens} out={u.completion_tokens} (cap {capped})")
+        except Exception:
+            pass
         return resp.choices[0].message.content.strip()
 
 # ─── Pipeline ─────────────────────────────────────────────────────────────────
 def run_pipeline(config):
+    single = config.get("single_run", False)
     try:
         mode = config["mode"]
 
-        state["stage"] = "Scraping LinkedIn + fetching descriptions..."
+        if single:
+            log("▶ Single test run: login → find one job description → score it.")
+        state["stage"] = ("Test run: scraping one job..." if single
+                          else "Scraping LinkedIn + fetching descriptions...")
         scrape_jobs(config)
 
         if state["stop_requested"]:
             raise StopIteration("Stopped by user after scraping")
+
+        # Single run must end with a usable JD; surface a clear error otherwise.
+        if single and not any(j.get("description") for j in state["jobs"]):
+            raise RuntimeError("No job description could be extracted after "
+                               "checking several cards. Try again or widen keywords.")
 
         if mode in ["with_scoring", "full"]:
             state["stage"] = "Scoring jobs with AI..."
@@ -572,10 +770,13 @@ def run_pipeline(config):
             state["stage"] = "Generating skill clusters and study plan..."
             generate_clusters_and_plan(config)
 
-        save_jobs()
+        # A test run is throwaway — don't pollute the persistent job database.
+        if not single:
+            save_jobs()
         state["stage"] = "Done ✓"
         state["running"] = False
-        log("✓ Pipeline complete. Download your files below.")
+        log("✓ Test run complete — one job scored." if single
+            else "✓ Pipeline complete. Download your files below.")
 
     except StopIteration as e:
         save_jobs()
@@ -712,6 +913,20 @@ def scrape_jobs(config):
     seen = set()           # dedup during scrape — prevents duplicate navigations
     job_counter = 0        # for periodic long pauses
 
+    prof = _profile(config)
+    single = config.get("single_run", False)
+    single_tries = 0       # how many cards we've opened looking for a JD
+    SINGLE_MAX_TRIES = 4    # checkpoint 2: try a few cards before flagging error
+    single_done = False
+
+    # Death-spiral guards. If the browser/context dies, every later navigation
+    # throws after a full timeout — hundreds of those is the original 4-hour
+    # hang. We bail the moment the session is fatally gone, or after too many
+    # consecutive failures (a soft-ban / dead session), and save what we have.
+    consecutive_fail = 0
+    MAX_CONSECUTIVE_FAIL = 6
+    session_dead = False
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -742,7 +957,7 @@ def scrape_jobs(config):
             page.keyboard.type(config["password"], delay=50)
             page.wait_for_timeout(500)
             page.keyboard.press("Enter")
-            page.wait_for_timeout(random.randint(6000, 9000))
+            page.wait_for_timeout(random.randint(*prof["login_ms"]))
             current_url = page.url
             if "feed" in current_url or "jobs" in current_url:
                 log(f"✓ Logged in — now on: {current_url}")
@@ -776,9 +991,13 @@ def scrape_jobs(config):
                 )
 
                 try:
-                    page.goto(search_url, timeout=45000, wait_until="domcontentloaded")
-                    page.wait_for_timeout(random.randint(3000, 5000))
+                    page.goto(search_url, timeout=30000, wait_until="domcontentloaded")
+                    page.wait_for_timeout(random.randint(*prof["page_ms"]))
                 except Exception as e:
+                    if _is_fatal_pw_error(e):
+                        log(f"  ✗ Browser session lost on search page — aborting scrape. ({str(e)[:80]})")
+                        session_dead = True
+                        break
                     log(f"  Timeout on page {page_num+1} for '{keyword}' — skipping")
                     break
 
@@ -874,8 +1093,11 @@ def scrape_jobs(config):
                     )
 
                     try:
-                        page.goto(job_url, timeout=45000, wait_until="domcontentloaded")
-                        page.wait_for_timeout(random.randint(3000, 5000))
+                        page.goto(job_url, timeout=30000, wait_until="domcontentloaded")
+                        page.wait_for_timeout(random.randint(*prof["page_ms"]))
+                        consecutive_fail = 0  # a clean navigation = session healthy
+                        if single:
+                            single_tries += 1
 
                         # Accept cookie consent if shown
                         for cookie_text in ["Accept", "Accept cookies"]:
@@ -910,22 +1132,59 @@ def scrape_jobs(config):
                             log(f"  [{job_counter}] {job['title'][:45]} — {status}")
 
                     except Exception as e:
-                        log(f"  Error fetching {card_data['title'][:40]}: {e}")
+                        if _is_fatal_pw_error(e):
+                            log(f"  ✗ Browser session lost — aborting scrape, saving partial. ({str(e)[:80]})")
+                            session_dead = True
+                            all_jobs.append(job)
+                            state["jobs"] = all_jobs
+                            break
+                        consecutive_fail += 1
+                        log(f"  Error fetching {card_data['title'][:40]}: {str(e)[:80]} "
+                            f"({consecutive_fail}/{MAX_CONSECUTIVE_FAIL})")
+                        if consecutive_fail >= MAX_CONSECUTIVE_FAIL:
+                            log(f"  ✗ {consecutive_fail} failures in a row — session likely "
+                                f"dead or blocked. Aborting, saving partial.")
+                            session_dead = True
+                            all_jobs.append(job)
+                            state["jobs"] = all_jobs
+                            break
 
                     all_jobs.append(job)
                     state["jobs"] = all_jobs  # live update for status endpoint
 
-                    # ── Random wait between jobs ───────────────────────────────
-                    # Every 25 jobs take a longer break to avoid rate limiting
-                    if job_counter > 0 and job_counter % 25 == 0:
-                        pause = random.randint(45, 90)
-                        log(f"  ⏸ Pause {pause}s every 25 jobs...")
-                        time.sleep(pause)
-                    else:
-                        time.sleep(random.uniform(8, 15))
+                    # ── Single test run: stop at the first usable JD ───────────
+                    if single:
+                        if job.get("description"):
+                            log(f"  ✓ Found a job description on try {single_tries} — scoring it.")
+                            all_jobs[:] = [job]
+                            state["jobs"] = all_jobs
+                            single_done = True
+                            break
+                        if single_tries >= SINGLE_MAX_TRIES:
+                            log(f"  ✗ No description found after {single_tries} cards.")
+                            break
+                        # try the next card quickly, no long pause
+                        interruptible_sleep(random.uniform(1, 2))
+                        continue
 
+                    # ── Random wait between jobs ───────────────────────────────
+                    every = prof["batch_every"]
+                    if every and job_counter > 0 and job_counter % every == 0:
+                        pause = random.randint(*prof["batch_pause"])
+                        log(f"  ⏸ Pause {pause}s every {every} jobs...")
+                        if not interruptible_sleep(pause):
+                            break
+                    else:
+                        if not interruptible_sleep(random.uniform(*prof["between"])):
+                            break
+
+                if single_done or state["stop_requested"] or session_dead:
+                    break
                 # Wait between search result pages
-                time.sleep(random.uniform(5, 8))
+                interruptible_sleep(random.uniform(*prof["between"]))
+
+            if single_done or state["stop_requested"] or session_dead:
+                break
 
         browser.close()
 
@@ -934,22 +1193,16 @@ def scrape_jobs(config):
     state["jobs"] = all_jobs
 
 # ─── Step 2: Score Jobs ───────────────────────────────────────────────────────
-def score_jobs(config):
+def _score_one_job(config, job):
+    """Score a single job in place. Safe to call from worker threads."""
     resume = config.get("resume_text", "No resume provided")
-    profession = config.get("profession", "the relevant field")
-    jobs = state["jobs"]
-    scored = []
 
-    for i, job in enumerate(jobs):
-        if not job.get("description"):
-            continue
+    # Only pass salary if we got it from a reliable source
+    salary_line = ""
+    if job.get("salary_confidence") == "verified" and job.get("salary"):
+        salary_line = f"SALARY: {job['salary']}\n"
 
-        # Only pass salary if we got it from a reliable source
-        salary_line = ""
-        if job.get("salary_confidence") == "verified" and job.get("salary"):
-            salary_line = f"SALARY: {job['salary']}\n"
-
-        prompt = f"""You are a hiring advisor evaluating a candidate for a specific job. Be direct — no flattery, no filler.
+    prompt = f"""You are a hiring advisor evaluating a candidate for a specific job. Be direct — no flattery, no filler.
 
 Compare the resume against the job requirements. Consider: seniority match, skill overlap, location/visa fit, realistic callback odds. Only mention compensation if it is listed and relevant.
 
@@ -975,27 +1228,67 @@ Return a JSON object with exactly these keys. Do NOT wrap the response in markdo
   "verdict": "One sentence: apply or skip, and why"
 }}"""
 
-        try:
-            text = _llm_chat(config, prompt, max_tokens=2000)
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            result = json.loads(text.strip())
-            job.update(result)
-            job["scored"] = True
-            if i % 5 == 0:
-                log(f"  Scored {i+1}/{len(jobs)} — {job['title']} | fit: {result.get('fit_score')}")
-        except Exception as e:
-            log(f"  Error scoring {job['title']}: {e}")
+    try:
+        # 64K requested budget — clamped per-model by _resolve_max_tokens, so a
+        # 64K/65K model gets full headroom and a smaller model gets its own max.
+        # Scoring JSON is ~3K tokens, so this is safety headroom, not extra cost.
+        text = _llm_chat(config, prompt, max_tokens=64000)
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        result = json.loads(text.strip())
+        job.update(result)
+        job["scored"] = True
+    except Exception as e:
+        log(f"  Error scoring {job['title'][:40]}: {e}")
+    return job
 
-        scored.append(job)
+def score_jobs(config):
+    from concurrent.futures import ThreadPoolExecutor
 
-        if state["stop_requested"]:
-            log(f"  Stopping scoring at job {i+1}/{len(jobs)}")
-            break
+    jobs = state["jobs"]
+    to_score = [j for j in jobs if j.get("description")]
+    if not to_score:
+        state["scored_jobs"] = []
+        log("Scoring complete: 0 jobs had descriptions to score")
+        return
 
-        time.sleep(0.5)
+    # Score in parallel — the LLM call is the bottleneck, so concurrency cuts
+    # wall-clock time hugely. Worker count is chosen automatically per provider
+    # to stay under rate limits; the user never has to think about it. These
+    # workers only make HTTP/LLM calls — they never touch Playwright.
+    workers = _auto_workers(config, len(to_score))
+
+    scored = []
+    lock = threading.Lock()
+    done = 0
+    total = len(to_score)
+    log(f"Scoring {total} jobs with {workers} parallel workers...")
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futures = [ex.submit(_score_one_job, config, j) for j in to_score]
+        for fut in futures:
+            if state["stop_requested"]:
+                fut.cancel()  # cancels only not-yet-started tasks
+        for fut in futures:
+            if fut.cancelled():
+                continue
+            try:
+                job = fut.result()
+            except Exception as e:
+                log(f"  Worker error: {e}")
+                continue
+            with lock:
+                scored.append(job)
+                state["scored_jobs"] = list(scored)  # live update for status
+                done += 1
+                if done % 5 == 0 or done == total:
+                    log(f"  Scored {done}/{total}")
+            if state["stop_requested"]:
+                log(f"  Stop requested — halting scoring at {done}/{total}")
+                for f in futures:
+                    f.cancel()
 
     state["scored_jobs"] = scored
     log(f"Scoring complete: {len([j for j in scored if j.get('scored')])} jobs scored")
@@ -1041,7 +1334,7 @@ Return a JSON object. Do NOT wrap the response in markdown or add any other text
 "study_plan": [{{"week":1,"theme":"","days":[{{"day":1,"focus":"","tasks":["","",""],"deliverable":"","hours":3}}]}}]}}"""
 
     try:
-        text = _llm_chat(config, prompt, max_tokens=6000)
+        text = _llm_chat(config, prompt, max_tokens=64000)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
