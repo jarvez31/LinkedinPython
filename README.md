@@ -153,6 +153,8 @@ Saved to `outputs/` folder.
 └── attachments/              ← Resume uploads (gitignored)
 ```
 
+> **Want the full picture?** See [ARCHITECTURE.md](ARCHITECTURE.md) for how a run flows end-to-end, the modes, the supported AI providers, and the HTTP endpoints.
+
 ---
 
 ## Notes
