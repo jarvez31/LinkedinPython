@@ -1,6 +1,6 @@
 # LinkedinPython — Job Intelligence Dashboard
 
-> Scrape LinkedIn jobs, score them against your resume with Claude AI, and get a personalised skill gap study plan. Works for any profession, any location.
+> Scrape LinkedIn jobs, score them against your resume with the AI provider of your choice (Anthropic, DeepSeek, Gemini, OpenAI, Llama, or any OpenAI-compatible endpoint), and get a personalised skill gap study plan. Works for any profession, any location.
 
 ---
 
@@ -12,10 +12,14 @@
 | 🎯 **Scraper + AI Score** | Above + fit score, response probability, matched/missing skills, verdict |
 | 🧠 **Full Analysis** | Above + skill gap clusters ranked by score boost + 4-week study plan |
 
+- **Choose your AI provider & model** from dropdowns — Anthropic, DeepSeek, Gemini, OpenAI, Llama, or a custom OpenAI-compatible endpoint
+- **🔬 Test Run** — a ~30s preflight: logs in, scores one real job, then cleans up. Run it before committing to a full scrape
+- **Speed control** — Fast / Balanced / Safe pacing (all keep human-like jitter to avoid rate limits)
+- **Parallel AI scoring** — jobs are scored concurrently (worker count auto-tuned per provider), so scoring is near-instant
 - Jobs sorted by fit score inside 3 salary tabs: **Annual / Hourly / Not Listed**
-- Stop mid-run and save partial results
-- Reset and re-run with different settings
+- Stop mid-run and save partial results; Run starts a clean new session
 - Works on macOS, Linux, and Windows (no WSL needed)
+- **Windows:** `setup.bat` creates a one-click Desktop shortcut that launches the dashboard (and self-installs any missing packages)
 
 ---
 
@@ -56,10 +60,15 @@ Edit the `.env` file and fill in your details:
 ```
 LINKEDIN_EMAIL=your-email@example.com
 LINKEDIN_PASSWORD=your-password
+# Provider: anthropic | deepseek | gemini | openai | llama | custom
 LLM_PROVIDER=anthropic
 LLM_MODEL=claude-sonnet-4-6
 LLM_API_KEY=sk-ant-api03-...
+# Custom endpoints only (deepseek/gemini/llama are routed automatically):
+# LLM_BASE_URL=https://api.openrouter.ai/v1
 ```
+
+> You can also pick the provider, model, and API key directly in the dashboard — no `.env` edit required. Non-Anthropic providers use the `openai` package (already in `requirements.txt`).
 
 ### 3. Run
 
@@ -84,13 +93,14 @@ python smoke_test.py
 
 1. Select a mode in the dashboard
 2. Enter your LinkedIn credentials (pre-filled from `.env`)
-3. Set keywords, location, pages per keyword, time filter
+3. Set keywords, location, pages per keyword, time filter, and **Speed** (Fast / Balanced / Safe)
 4. Enter your **profession or field** — the AI uses this to tailor scoring and the study plan
 5. Upload your resume (PDF or DOCX) — required for scoring modes
-6. Enter your Anthropic API key (pre-filled from `.env`) — required for scoring modes
-7. Click **Run Pipeline** — watch the live log
-8. Hit **⚠ Stop** to halt mid-run, **↺ Reset** to start fresh
-9. Download output files or browse the salary tabs
+6. Pick your **AI provider & model** and enter the API key (pre-filled from `.env`) — required for scoring modes
+7. (Recommended) Hit **🔬 Test Run** first — logs in, scores one job, confirms everything works in ~30s
+8. Click **Run Pipeline** — watch the live log (including live token counts per scored job)
+9. Hit **⚠ Stop** to halt and save partial results, **↺ Reset** to start fresh
+10. Download output files or browse the salary tabs
 
 ---
 
@@ -110,7 +120,7 @@ Saved to `outputs/` folder.
 
 - Python 3.9+
 - A LinkedIn account
-- An Anthropic API key — [console.anthropic.com](https://console.anthropic.com) (~$5 covers 250-300 scored jobs)
+- An API key for **one** AI provider (scoring modes only): Anthropic, DeepSeek, Gemini, OpenAI, Llama, or any OpenAI-compatible endpoint. DeepSeek is the cheapest; Anthropic ~$5 covers 250–300 scored jobs.
 
 > Secrets are stored in `.env` (gitignored). Preferences (keywords, location, profession) are saved to `config.json` for convenience.
 
@@ -131,9 +141,10 @@ Saved to `outputs/` folder.
 ```
 ├── app.py                    ← Flask server + full pipeline (scrape, score, clusters, plan)
 ├── dashboard.html            ← Browser UI
+├── launch_dashboard.bat      ← Windows one-click launcher (Desktop shortcut target; self-heals deps)
 ├── smoke_test.py             ← Pre-flight dependency check
 ├── clean_jobs.py             ← Remove null-description jobs from data files
-├── setup.sh / setup.bat      ← One-command setup
+├── setup.sh / setup.bat      ← One-command setup (Windows setup.bat also creates the Desktop shortcut)
 ├── requirements.txt
 ├── .env.example              ← Template for your credentials
 │
@@ -147,6 +158,8 @@ Saved to `outputs/` folder.
 ## Notes
 
 - Uses Playwright (headless Chromium) with rate limiting — works on residential IPs, not cloud servers
+- **Speed tiers** keep human-like randomness; if the browser session dies, the scrape auto-aborts and saves partial results (no more multi-hour hangs)
+- **Scoring runs in parallel** with a per-provider auto-tuned worker count; the live log shows token counts per job
 - Jobs deduplicated by ID on every run — re-runs only add new jobs
 - Salary auto-classified: annual / hourly / missing
-- Run `python smoke_test.py` before your first full pipeline to catch setup issues early
+- Run `python smoke_test.py` (or the in-app **Test Run**) before your first full pipeline to catch setup issues early
