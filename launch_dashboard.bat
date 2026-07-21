@@ -53,7 +53,7 @@ if errorlevel 1 (
 start "" /min cmd /c "timeout /t 4 >nul & start "" http://localhost:5000"
 
 echo.
-echo Starting LinkedinPython dashboard at http://localhost:5000
+echo Starting KarrierMultiSource dashboard at http://localhost:5000
 echo Close this window (or press Ctrl+C) to stop the server.
 echo.
 python app.py

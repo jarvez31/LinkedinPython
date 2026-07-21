@@ -57,11 +57,11 @@ if not exist ".env" (
 :: Desktop shortcut -> launch_dashboard.bat
 echo.
 echo Creating desktop shortcut...
-set "SHORTCUT=%USERPROFILE%\Desktop\LinkedinPython.lnk"
+set "SHORTCUT=%USERPROFILE%\Desktop\KarrierMultiSource.lnk"
 set "TARGET=%~dp0launch_dashboard.bat"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT%'); $s.TargetPath='%TARGET%'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%SystemRoot%\System32\SHELL32.dll,220'; $s.Description='LinkedinPython Job Dashboard'; $s.Save()"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%SHORTCUT%'); $s.TargetPath='%TARGET%'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%SystemRoot%\System32\SHELL32.dll,13'; $s.Description='KarrierMultiSource Job Dashboard (LinkedIn, Indeed, karriere.at, Xing)'; $s.Save()"
 if exist "%SHORTCUT%" (
-    echo [OK] Desktop shortcut created: LinkedinPython
+    echo [OK] Desktop shortcut created: KarrierMultiSource
 ) else (
     echo [WARN] Could not create desktop shortcut ^(run launch_dashboard.bat directly^)
 )

@@ -102,6 +102,10 @@
   .tab-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(124,106,255,0.05); }
   .tab-btn:hover { border-color: rgba(124,106,255,0.4); }
   .tab-count { font-size: 10px; padding: 1px 6px; background: rgba(124,106,255,0.15); border-radius: 10px; }
+  .src-chip { background: var(--card); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px; }
+  .src-chip.active { border-color: var(--accent3); color: var(--accent3); background: rgba(106,255,180,0.06); }
+  .src-chip:hover { border-color: rgba(106,255,180,0.4); }
+  .job-tag.src { background: rgba(106,255,180,0.12); color: var(--accent3); }
 
   /* Job cards */
   .job-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 10px; background: var(--card); display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; transition: border-color 0.15s; }
@@ -166,7 +170,7 @@
   <header>
     <div class="badge">Job Intelligence</div>
     <h1>Job Scraper<br><span>Dashboard</span></h1>
-    <p class="subtitle">Scrape LinkedIn jobs, score them against your resume with Claude AI,<br>and get a personalised skill gap study plan.</p>
+    <p class="subtitle">Scrape LinkedIn, Indeed, karriere.at &amp; Xing jobs, score them against your resume with Claude AI,<br>and get a personalised skill gap study plan.</p>
   </header>
 
   <!-- Mode Selection -->
@@ -196,12 +200,36 @@
     <input type="hidden" id="mode-input" name="mode" value="scraper_only">
     <input type="hidden" id="single-run-input" name="single_run" value="">
 
-    <!-- LinkedIn Credentials -->
+    <!-- Job Sources -->
     <div class="form-section">
+      <div class="section-label">Job Sources</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+          <input type="checkbox" name="job_sources" value="linkedin" checked onchange="updateSourceUI()"> LinkedIn</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+          <input type="checkbox" name="job_sources" value="indeed" onchange="updateSourceUI()"> Indeed <span style="color:var(--muted);font-size:10px">(no login)</span></label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+          <input type="checkbox" name="job_sources" value="karriere" onchange="updateSourceUI()"> karriere.at <span style="color:var(--muted);font-size:10px">(AT only, no login)</span></label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;">
+          <input type="checkbox" name="job_sources" value="xing" onchange="updateSourceUI()"> Xing <span style="color:var(--muted);font-size:10px">(needs login)</span></label>
+      </div>
+    </div>
+
+    <!-- LinkedIn Credentials -->
+    <div class="form-section" id="linkedin-creds">
       <div class="section-label">LinkedIn Credentials</div>
       <div class="field-row">
-        <div class="field"><label>Email</label><input type="email" name="email" placeholder="your@email.com" required></div>
-        <div class="field"><label>Password</label><input type="password" name="password" placeholder="••••••••" required></div>
+        <div class="field"><label>Email</label><input type="email" name="email" id="li-email" placeholder="your@email.com" required></div>
+        <div class="field"><label>Password</label><input type="password" name="password" id="li-password" placeholder="••••••••" required></div>
+      </div>
+    </div>
+
+    <!-- Xing Credentials (shown only when Xing is selected) -->
+    <div class="form-section" id="xing-creds" style="display:none">
+      <div class="section-label">Xing Credentials</div>
+      <div class="field-row">
+        <div class="field"><label>Email</label><input type="email" name="xing_email" id="xing-email" placeholder="your@email.com"></div>
+        <div class="field"><label>Password</label><input type="password" name="xing_password" id="xing-password" placeholder="••••••••"></div>
       </div>
     </div>
 
@@ -235,14 +263,20 @@
         </div>
         <div class="field-row">
           <div class="field">
-            <label>Speed <span style="color:var(--muted);font-size:10px">(LinkedIn pace — keeps human-like jitter)</span></label>
+            <label>Speed <span style="color:var(--muted);font-size:10px">(scrape pace — keeps human-like jitter)</span></label>
             <select name="speed" id="speed-select">
               <option value="fast">Fast — small / test batches</option>
               <option value="balanced" selected>Balanced — recommended</option>
               <option value="safe">Safe — overnight, large batches</option>
             </select>
           </div>
-          <div class="field"></div>
+          <div class="field">
+            <label>Country / domain <span style="color:var(--muted);font-size:10px">(Indeed/Xing region)</span></label>
+            <select name="country" id="country-select">
+              <option value="at" selected>Austria (.at)</option>
+              <option value="com">International (.com)</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -287,6 +321,17 @@
             <label id="api-key-label">API Key</label>
             <input type="password" name="llm_api_key" id="llm-api-key" placeholder="sk-...">
           </div>
+        </div>
+      </div>
+
+      <!-- Applier Link -->
+      <div class="form-section">
+        <div class="section-label">Auto-Apply Process</div>
+        <div style="padding: 16px 0;">
+          <a href="/applier" style="display:inline-block; padding: 10px 16px; background: var(--accent); color: white; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            Go to Applier Dashboard ➔
+          </a>
+          <div style="margin-top: 8px; font-size: 13px; color: var(--muted);">Scrape and score your jobs here first, then head to the Applier Dashboard to run auto-applications.</div>
         </div>
       </div>
     </div>
@@ -361,6 +406,16 @@
       <button onclick="downloadAppliedCsv()" style="margin-left:auto;font-size:11px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent3)';this.style.color='var(--accent3)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↓ Export Applied CSV</button>
     </div>
 
+    <!-- Source filter (augments the salary tabs — cross-cuts by job board) -->
+    <div id="source-filter" style="display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+      <span style="font-size:10px;color:var(--muted);margin-right:2px;letter-spacing:0.5px;">SOURCE</span>
+      <button class="src-chip active" data-src="all" onclick="setSourceFilter('all')">All <span id="srccount-all" class="tab-count">0</span></button>
+      <button class="src-chip" data-src="linkedin" onclick="setSourceFilter('linkedin')">LinkedIn <span id="srccount-linkedin" class="tab-count">0</span></button>
+      <button class="src-chip" data-src="indeed" onclick="setSourceFilter('indeed')">Indeed <span id="srccount-indeed" class="tab-count">0</span></button>
+      <button class="src-chip" data-src="karriere" onclick="setSourceFilter('karriere')">karriere.at <span id="srccount-karriere" class="tab-count">0</span></button>
+      <button class="src-chip" data-src="xing" onclick="setSourceFilter('xing')">Xing <span id="srccount-xing" class="tab-count">0</span></button>
+    </div>
+
     <div id="jobs-annual" class="job-list"></div>
     <div id="jobs-hourly" class="job-list" style="display:none"></div>
     <div id="jobs-missing" class="job-list" style="display:none"></div>
@@ -376,6 +431,39 @@
   let currentMode = 'scraper_only';
   let polling = null;
   let activeTab = 'annual';
+
+  // ── Source segregation (augments salary tabs; does not alter them) ──────────
+  let activeSourceFilter = 'all';
+  const SOURCE_LABELS = { linkedin: 'LinkedIn', indeed: 'Indeed', karriere: 'karriere.at', xing: 'Xing' };
+
+  function matchesSource(job) {
+    return activeSourceFilter === 'all' || (job.source || '') === activeSourceFilter;
+  }
+
+  function sourceBadge(job) {
+    if (!job || !job.source) return '';
+    return `<span class="job-tag src">${SOURCE_LABELS[job.source] || job.source}</span>`;
+  }
+
+  function updateSourceChipCounts() {
+    const all = [...allJobsCache.annual, ...allJobsCache.hourly, ...allJobsCache.missing].filter(j => {
+      const id = j.url || j.title;
+      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id)
+          && !interestedJobs.has(id) && !expiredJobs.has(id);
+    });
+    const counts = { all: all.length, linkedin: 0, indeed: 0, karriere: 0, xing: 0 };
+    all.forEach(j => { const s = j.source || ''; if (counts[s] !== undefined) counts[s]++; });
+    Object.keys(counts).forEach(k => {
+      const el = document.getElementById('srccount-' + k);
+      if (el) el.textContent = counts[k];
+    });
+  }
+
+  function setSourceFilter(src) {
+    activeSourceFilter = src;
+    document.querySelectorAll('.src-chip').forEach(c => c.classList.toggle('active', c.dataset.src === src));
+    reRenderSalaryTabs();
+  }
 
   // ── Job Registry ──────────────────────────────────────────────────────────
   const jobRegistry = {};
@@ -401,8 +489,8 @@
   function renderSalaryTab(tab, jobs) {
     const filtered = jobs.filter(j => {
       const id = j.url || j.title;
-      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id) 
-          && !interestedJobs.has(id) && !expiredJobs.has(id);
+      return !appliedJobs.has(id) && !notInterestedJobs.has(id) && !rejectedJobs.has(id)
+          && !interestedJobs.has(id) && !expiredJobs.has(id) && matchesSource(j);
     });
     const msgs = { annual: 'No annual salary jobs.', hourly: 'No hourly rate jobs.', missing: 'No salary not listed jobs.' };
     document.getElementById('count-' + tab).textContent = filtered.length;
@@ -415,6 +503,7 @@
     renderSalaryTab('annual', allJobsCache.annual);
     renderSalaryTab('hourly', allJobsCache.hourly);
     renderSalaryTab('missing', allJobsCache.missing);
+    updateSourceChipCounts();
   }
 
   function renderJobCard(job) {
@@ -437,7 +526,7 @@
         <div style="flex:1">
           <div class="job-title">${job.title}</div>
           <div class="job-company">${job.company} · ${job.location || ''}</div>
-          <div class="job-meta">${fit}${prob}${salary}</div>
+          <div class="job-meta">${sourceBadge(job)}${fit}${prob}${salary}</div>
           ${verdict}${matchedHtml}${missingHtml}
           <div class="action-btns">
             <button class="apply-btn ${isInterested ? 'applied' : ''}" ${isInterested ? 'disabled' : ''}
@@ -502,7 +591,7 @@
         <div style="flex:1">
           <div class="job-title">${job.title}</div>
           <div class="job-company">${job.company} · ${job.location || ''}</div>
-          <div class="job-meta">${fit}${prob}${sal}</div>
+          <div class="job-meta">${sourceBadge(job)}${fit}${prob}${sal}</div>
           ${timestamp}${missingHtml}
           <div class="action-btns">${actions}</div>
         </div>
@@ -679,6 +768,9 @@
     } else {
       document.getElementById('applied-filter-toggle').style.display = 'none';
     }
+    // Source filter augments the salary/result tabs only — hide it on status tabs.
+    const sf = document.getElementById('source-filter');
+    if (sf) sf.style.display = ['annual', 'hourly', 'missing'].includes(tab) ? 'flex' : 'none';
   }
 
   function toggleActionNeededFilter() {
@@ -723,7 +815,7 @@
   const PROVIDER_MODELS = {
     anthropic: { models: ['claude-opus-4-8','claude-sonnet-4-6','claude-haiku-4-5'],
                  keyLabel: 'Anthropic API Key', placeholder: 'sk-ant-...', custom: false },
-    deepseek:  { models: ['deepseek-v4-pro','deepseek-v4-flash'],
+    deepseek:  { models: ['deepseek-chat','deepseek-reasoner','deepseek-v4-pro','deepseek-v4-flash'],
                  keyLabel: 'DeepSeek API Key', placeholder: 'sk-...', custom: false },
     gemini:    { models: ['gemini-2.5-pro','gemini-2.5-flash','gemini-3-flash-preview'],
                  keyLabel: 'Google AI API Key', placeholder: 'AIza...', custom: false },
@@ -782,6 +874,26 @@
       resumeInput.setAttribute('required', '');
       if (apiKeyInput) apiKeyInput.setAttribute('required', '');
     }
+  }
+
+  // Show/hide credential blocks based on which sources are checked, and only
+  // mark a login's fields `required` when that source is actually selected
+  // (a hidden required field would otherwise block form submission).
+  function updateSourceUI() {
+    const checked = Array.from(document.querySelectorAll('input[name=job_sources]:checked'))
+                         .map(c => c.value);
+    const setReq = (id, on) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (on) el.setAttribute('required', ''); else el.removeAttribute('required');
+    };
+    const liOn = checked.includes('linkedin');
+    document.getElementById('linkedin-creds').style.display = liOn ? 'block' : 'none';
+    setReq('li-email', liOn); setReq('li-password', liOn);
+
+    const xingOn = checked.includes('xing');
+    document.getElementById('xing-creds').style.display = xingOn ? 'block' : 'none';
+    setReq('xing-email', xingOn); setReq('xing-password', xingOn);
   }
 
   function showFileName(input) {
@@ -929,11 +1041,22 @@
       if (cfg.keywords)      document.querySelector('input[name=keywords]').value = cfg.keywords;
       if (cfg.location)      document.querySelector('input[name=location]').value = cfg.location;
       if (cfg.profession)    document.querySelector('input[name=profession]').value = cfg.profession;
+      if (cfg.xing_email)    document.getElementById('xing-email').value = cfg.xing_email;
+      if (cfg.xing_password) document.getElementById('xing-password').value = cfg.xing_password;
+      if (cfg.country)       document.getElementById('country-select').value = cfg.country;
+
+      if (Array.isArray(cfg.job_sources) && cfg.job_sources.length) {
+        document.querySelectorAll('input[name=job_sources]').forEach(cb => {
+          cb.checked = cfg.job_sources.includes(cb.value);
+        });
+      }
+      updateSourceUI();
     } catch(e) {}
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
   setMode('scraper_only');
+  updateSourceUI();
   loadAllStatus();
   loadConfig();
 
