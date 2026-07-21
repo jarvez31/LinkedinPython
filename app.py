@@ -100,12 +100,12 @@ def interruptible_sleep(seconds):
 # ─── File Helpers ─────────────────────────────────────────────────────────────
 def load_file(path):
     if path.exists():
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save_file(path, data):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 def get_timestamp():
@@ -459,7 +459,10 @@ def mark_action_needed():
 
 @app.route("/expired", methods=["GET"])
 def get_expired():
-    return jsonify(load_file(EXPIRED_FILE))
+    # The client only needs the set of expired job ids (to grey out expired jobs),
+    # not the full records — returning every expired job dict was a 28MB payload
+    # that stalled page loads on mobile. Return just the keys.
+    return jsonify(list(load_file(EXPIRED_FILE).keys()))
 
 @app.route("/expired/mark", methods=["POST"])
 def mark_expired():
@@ -859,23 +862,23 @@ def run_pipeline(config):
 def save_jobs():
     existing = {}
     if JOBS_FILE.exists():
-        with open(JOBS_FILE) as f:
+        with open(JOBS_FILE, encoding="utf-8") as f:
             for j in json.load(f):
                 existing[j["id"]] = j
     for job in state["jobs"]:
         existing[job["id"]] = job
-    with open(JOBS_FILE, "w") as f:
+    with open(JOBS_FILE, "w", encoding="utf-8") as f:
         json.dump(list(existing.values()), f, indent=2)
 
     if state["scored_jobs"]:
         scored_existing = {}
         if SCORED_FILE.exists():
-            with open(SCORED_FILE) as f:
+            with open(SCORED_FILE, encoding="utf-8") as f:
                 for j in json.load(f):
                     scored_existing[j["id"]] = j
         for job in state["scored_jobs"]:
             scored_existing[job["id"]] = job
-        with open(SCORED_FILE, "w") as f:
+        with open(SCORED_FILE, "w", encoding="utf-8") as f:
             json.dump(list(scored_existing.values()), f, indent=2)
 
     log(f"Saved {len(existing)} jobs to data/")

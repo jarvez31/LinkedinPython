@@ -602,22 +602,21 @@
   // ── Load All Status From Server ────────────────────────────────────────────
   async function loadAllStatus() {
     try {
-      const [appRes, niRes, rejRes, intRes, actRes, expRes] = await Promise.all([
-        fetch('/applied'), fetch('/not_interested'), fetch('/rejected'), fetch('/interested'), fetch('/action_needed'), fetch('/expired')
+      // Each fetch is failure-proof: one slow or broken status endpoint must never
+      // blank ALL the tabs (the old Promise.all rejected as a group). /expired now
+      // returns just the id list the client needs, not the full expired records.
+      const safe = (url, fb) => fetch(url).then(r => r.ok ? r.json() : fb).catch(() => fb);
+      const [appData, niData, rejData, intData, actData, expData] = await Promise.all([
+        safe('/applied', {}), safe('/not_interested', {}), safe('/rejected', {}),
+        safe('/interested', {}), safe('/action_needed', {}), safe('/expired', [])
       ]);
-      const appData = await appRes.json();
-      const niData  = await niRes.json();
-      const rejData = await rejRes.json();
-      const intData = await intRes.json();
-      const actData = await actRes.json();
-      const expData = await expRes.json();
 
       appliedJobs       = new Set(Object.keys(appData));
       notInterestedJobs = new Set(Object.keys(niData));
       rejectedJobs      = new Set(Object.keys(rejData));
       interestedJobs    = new Set(Object.keys(intData));
       actionNeededJobs  = new Set(Object.keys(actData));
-      expiredJobs       = new Set(Object.keys(expData));
+      expiredJobs       = new Set(expData);
 
       document.getElementById('count-applied').textContent = Object.keys(appData).length;
       document.getElementById('count-not-interested').textContent = Object.keys(niData).length;
