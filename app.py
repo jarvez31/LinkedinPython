@@ -488,6 +488,7 @@ def salary_stats():
             "company": j.get("company",""),
             "location": j.get("location",""),
             "salary": j.get("salary",""),
+            "source": j.get("source",""),
             "fit_score": j.get("fit_score",""),
             "response_probability": j.get("response_probability",""),
             "matched_skills": j.get("matched_skills", []),
@@ -522,7 +523,7 @@ def load_csv():
 
         idx = {
             "title": col("title"), "company": col("company"), "location": col("location"),
-            "salary": col("salary"), "salary_type": col("salary type"),
+            "salary": col("salary"), "salary_type": col("salary type"), "source": col("source"),
             "fit_score": col("fit score"), "response_probability": col("response probability"),
             "missing_skills": col("missing skills"), "verdict": col("verdict"), "url": col("url"),
         }
@@ -542,7 +543,7 @@ def load_csv():
 
             job = {
                 "title": get("title"), "company": get("company"), "location": get("location"),
-                "salary": get("salary"), "fit_score": get("fit_score"),
+                "salary": get("salary"), "source": get("source"), "fit_score": get("fit_score"),
                 "response_probability": get("response_probability"),
                 "missing_skills": missing, "matched_skills": [],
                 "verdict": get("verdict"), "url": get("url"),
@@ -2094,7 +2095,7 @@ def generate_csv():
 
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Title","Company","Location","Salary","Salary Type",
+        writer.writerow(["Source","Title","Company","Location","Salary","Salary Type",
                          "Fit Score","Response Probability","Missing Skills","Verdict","Apply Type","URL"])
 
         def write_section(section_jobs, label):
@@ -2102,6 +2103,7 @@ def generate_csv():
                 writer.writerow([f"--- {label} ({len(section_jobs)} jobs) ---"])
                 for job in sorted(section_jobs, key=lambda x: x.get("fit_score", 0), reverse=True):
                     writer.writerow([
+                        job.get("source",""),
                         job.get("title",""), job.get("company",""), job.get("location",""),
                         job.get("salary",""), job.get("salary_type",""),
                         job.get("fit_score",""), job.get("response_probability",""),
