@@ -5,7 +5,7 @@ Open: http://localhost:5000
 """
 
 from flask import Flask, request, jsonify, send_file
-import os, json, csv, re, time, threading, random
+import os, json, csv, re, time, threading, random, hashlib
 from pathlib import Path
 from collections import Counter
 import tempfile
@@ -26,6 +26,21 @@ else:
     load_dotenv(BASE_DIR / ".env")
     DATA_DIR = BASE_DIR / "data"
     OUTPUTS_DIR = BASE_DIR / "outputs"
+
+
+def stable_job_id(source, url, site_id=None):
+    """Deterministic job id for a posting.
+
+    Uses the id the site itself assigns whenever we can read it, so the same
+    posting keeps the same id across scrape runs. The fallback is a sha1 of the
+    url rather than hash(), because CPython randomises the hash of a str per
+    process, which minted a fresh id for every posting on every run.
+    """
+    if site_id:
+        return "%s_%s" % (source, site_id)
+    digest = hashlib.sha1((url or "").encode("utf-8")).hexdigest()[:16]
+    return "%s_%s" % (source, digest)
+
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
@@ -1090,7 +1105,7 @@ def scrape_indeed_jobs(config):
                     if state["stop_requested"]:
                         break
                     jk = jd.get("jk", "")
-                    job_id = f"indeed_{jk}" if jk else f"indeed_{abs(hash(jd.get('href', '')))}"
+                    job_id = stable_job_id("indeed", jd.get("href", ""), jk)
                     if job_id in seen_ids or not jd["title"]:
                         continue
                     seen_ids.add(job_id)
@@ -1281,7 +1296,8 @@ def scrape_karriere_jobs(config):
                         break
                     import re as _re
                     m = _re.search(r"/jobs/(\d+)", jd["href"])
-                    job_id = f"karriere_{m.group(1)}" if m else f"karriere_{abs(hash(jd['href']))}"
+                    job_id = stable_job_id("karriere", jd["href"],
+                                           m.group(1) if m else None)
                     if job_id in seen_ids or not jd["title"]:
                         continue
                     seen_ids.add(job_id)
@@ -1541,7 +1557,9 @@ def scrape_xing_jobs(config):
                 for jd in jobs_data:
                     if state["stop_requested"]:
                         break
-                    job_id = f"xing_{abs(hash(jd['url']))}"
+                    xm = re.search(r"/jobs/[^/?#]*?-(\d{6,})(?:[?#]|$)", jd["url"])
+                    job_id = stable_job_id("xing", jd["url"],
+                                           xm.group(1) if xm else None)
                     if job_id in seen_ids or not jd["title"]:
                         continue
                     seen_ids.add(job_id)
